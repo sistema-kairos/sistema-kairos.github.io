@@ -15,43 +15,71 @@
     </header>
     <div class="filters" id="filters"></div>
 
-    <section class="kpis" id="k-resumo"></section>
-    <p class="muted small note">Faturamento de cada cliente = mensalidade fixa + (taxa variável × faturamento mensal médio do cliente). No modelo DK, a taxa variável é o valor em R$ do cadastro.
-      Churn = esse faturamento ÷ faturamento mensal base da empresa.</p>
-
-    <div class="section-head">
-      <span class="badge warn">⏳ Em aviso prévio</span>
-      <h2>Clientes em A.P: faturamento a perder</h2>
-      <span class="muted small">Situação atual, não depende do período</span>
-    </div>
-    <section class="kpis" id="k-ap"></section>
-    <section class="charts">
-      <div class="card"><h3>Faturamento a perder por mês de saída</h3><div class="chart-box"><canvas id="c-ap-mes"></canvas></div></div>
-      <div class="card"><h3>Reuniões de A.P</h3><div class="chart-box"><canvas id="c-ap-reuniao"></canvas></div></div>
+    <section class="dash-section">
+      <div class="section-head">
+        <span class="badge lime">Resumo</span>
+        <h2>Churn de faturamento</h2>
+      </div>
+      <div class="kpis main" id="k-resumo"></div>
+      <details class="more">
+        <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
+        <div class="more-body">
+          <div class="kpis" id="k-resumo-mais"></div>
+          <p class="muted small note">Faturamento de cada cliente = mensalidade fixa + (taxa variável × faturamento mensal médio do cliente). No modelo DK, a taxa variável é o valor em R$ do cadastro.
+            Churn = esse faturamento ÷ faturamento mensal base da empresa.</p>
+        </div>
+      </details>
     </section>
-    <div class="card table-card">
-      <div class="table-wrap"><table class="data static"><thead><tr>
-        <th>Saída prevista</th><th class="num">Faltam</th><th>Loja</th><th>Cliente</th><th>Hub</th>
-        <th class="num">Faturamento a perder</th><th class="num">% da base</th><th>Reunião de A.P</th>
-      </tr></thead><tbody id="t-ap"></tbody></table></div>
-    </div>
 
-    <div class="section-head">
-      <span class="badge down">✕ Saíram</span>
-      <h2>Clientes que saíram: faturamento perdido</h2>
-      <span class="muted small" id="saiu-periodo"></span>
-    </div>
-    <section class="kpis" id="k-saiu"></section>
-    <section class="charts">
-      <div class="card"><h3>Churn de faturamento por mês</h3><div class="chart-box"><canvas id="c-churn-mes"></canvas></div></div>
-      <div class="card"><h3>Tempo de vida dos clientes que saíram</h3><div class="chart-box"><canvas id="c-vida"></canvas></div></div>
-      <div class="card"><h3>Faturamento perdido por hub</h3><div class="chart-box"><canvas id="c-hub"></canvas></div></div>
+    <section class="dash-section">
+      <div class="section-head">
+        <span class="badge warn">⏳ Em aviso prévio</span>
+        <h2>Clientes em A.P: faturamento a perder</h2>
+        <span class="muted small">Situação atual, não depende do período</span>
+      </div>
+      <div class="kpis main" id="k-ap"></div>
+      <details class="more">
+        <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
+        <div class="more-body">
+          <div class="kpis" id="k-ap-mais"></div>
+          <div class="charts">
+            <div class="card"><h3>Faturamento a perder por mês de saída</h3><div class="chart-box"><canvas id="c-ap-mes"></canvas></div></div>
+            <div class="card"><h3>Reuniões de A.P</h3><div class="chart-box"><canvas id="c-ap-reuniao"></canvas></div></div>
+          </div>
+          <div class="card table-card">
+            <div class="table-wrap"><table class="data static"><thead><tr>
+              <th>Saída prevista</th><th class="num">Faltam</th><th>Loja</th><th>Cliente</th><th>Hub</th>
+              <th class="num">Faturamento a perder</th><th class="num">% da base</th><th>Reunião de A.P</th>
+            </tr></thead><tbody id="t-ap"></tbody></table></div>
+          </div>
+        </div>
+      </details>
     </section>
-    <div class="card table-card">
-      <div class="table-wrap"><table class="data static"><thead><tr>
-        <th>Saída</th><th>Loja</th><th>Cliente</th><th>Hub</th><th class="num">Faturamento perdido</th><th class="num">% da base</th><th class="num">Tempo de vida</th>
-      </tr></thead><tbody id="t-saiu"></tbody></table></div>
-    </div>
+
+    <section class="dash-section">
+      <div class="section-head">
+        <span class="badge down">✕ Saíram</span>
+        <h2>Clientes que saíram: faturamento perdido</h2>
+        <span class="muted small" id="saiu-periodo"></span>
+      </div>
+      <div class="kpis main" id="k-saiu"></div>
+      <details class="more">
+        <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
+        <div class="more-body">
+          <div class="kpis" id="k-saiu-mais"></div>
+          <div class="charts">
+            <div class="card"><h3>Churn de faturamento por mês</h3><div class="chart-box"><canvas id="c-churn-mes"></canvas></div></div>
+            <div class="card"><h3>Tempo de vida dos clientes que saíram</h3><div class="chart-box"><canvas id="c-vida"></canvas></div></div>
+            <div class="card"><h3>Faturamento perdido por hub</h3><div class="chart-box"><canvas id="c-hub"></canvas></div></div>
+          </div>
+          <div class="card table-card">
+            <div class="table-wrap"><table class="data static"><thead><tr>
+              <th>Saída</th><th>Loja</th><th>Cliente</th><th>Hub</th><th class="num">Faturamento perdido</th><th class="num">% da base</th><th class="num">Tempo de vida</th>
+            </tr></thead><tbody id="t-saiu"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </section>
   </main>
   <script src="config.js"></script>
   <script src="store.js"></script>
@@ -101,8 +129,10 @@
       const perdido = somaReceita(saiu);
 
       // ---------- resumo ----------
-      Dash.kpis('#k-resumo', [
+      Dash.kpis('#k-resumo-mais', [
         { label: 'Faturamento mensal base', value: fmt.money(BASE), sub: '<a href="configuracoes.html">Alterar em Configurações</a>' },
+      ]);
+      Dash.kpis('#k-resumo', [
         { label: 'Churn em A.P (a perder)', value: pctTxt(aPerder), sub: `${fmt.money(aPerder)}/mês de ${emAP.length} cliente(s)` },
         { label: 'Churn realizado no período', value: pctTxt(perdido), sub: `${fmt.money(perdido)}/mês · média de ${pctTxt(perdido / nMeses)} ao mês` },
         { label: 'Faturamento após as saídas em A.P', value: fmt.money(BASE - aPerder), sub: `${pctTxt(BASE - aPerder)} da base mantida` },
@@ -116,6 +146,8 @@
         { label: 'Clientes em A.P', value: fmt.num(emAP.length, 0), sub: emAP.filter(r => !r.data_saida_prevista).length ? `${emAP.filter(r => !r.data_saida_prevista).length} sem data de saída` : 'com saída já agendada' },
         { label: 'Faturamento a perder', value: fmt.money(aPerder), sub: `${pctTxt(aPerder)} da base · ${fmt.money(Dash.sum(emAP, 'mensalidade_fixa'))} fixa + ${fmt.money(emAP.reduce((s, r) => s + variavel(r), 0))} variável` },
         { label: 'Saem nos próximos 30 dias', value: fmt.num(prox30.length, 0), sub: `${fmt.money(somaReceita(prox30))}/mês (${pctTxt(somaReceita(prox30))})` },
+      ]);
+      Dash.kpis('#k-ap-mais', [
         { label: 'Reuniões de A.P pendentes', value: fmt.num(reun['Pendente'] || 0, 0), sub: `${reun['Agendada'] || 0} agendadas · ${reun['Realizada'] || 0} realizadas` },
       ]);
 
@@ -149,6 +181,8 @@
         { label: 'Clientes que saíram', value: fmt.num(saiu.length, 0), sub: 'no período' },
         { label: 'Faturamento perdido', value: fmt.money(perdido), sub: `churn de ${pctTxt(perdido)} sobre ${fmt.money(BASE)}` },
         { label: 'Churn de clientes', value: clientesInicio ? fmt.pct(Math.round(saiu.length / clientesInicio * 1000) / 10) : '—', sub: clientesInicio ? `${saiu.length} de ${clientesInicio} clientes no início do período` : 'sem base no Comercial' },
+      ]);
+      Dash.kpis('#k-saiu-mais', [
         { label: 'Tempo de vida médio', value: saiu.length && Dash.avg(saiu, 'tempo_vida') !== null ? fmt.num(Dash.avg(saiu, 'tempo_vida')) + ' meses' : '—' },
       ]);
 

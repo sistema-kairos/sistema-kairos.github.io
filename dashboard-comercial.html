@@ -14,19 +14,44 @@
       <div><h1>Dashboard Comercial</h1><p>Indicadores de entrada de clientes</p></div>
     </header>
     <div class="filters" id="filters"></div>
-    <section class="kpis" id="kpis"></section>
-    <section class="charts">
-      <div class="card"><h3>Novos clientes por mês</h3><div class="chart-box"><canvas id="c-novos"></canvas></div></div>
-      <div class="card"><h3>Mensalidade fixa adicionada por mês</h3><div class="chart-box"><canvas id="c-mrr"></canvas></div></div>
-      <div class="card"><h3>Mensalidade fixa por hub</h3><div class="chart-box"><canvas id="c-hub"></canvas></div></div>
-      <div class="card"><h3>Clientes por modelo</h3><div class="chart-box"><canvas id="c-modelo"></canvas></div></div>
+    <section class="dash-section">
+      <div class="section-head">
+        <span class="badge lime">Vendas</span>
+        <h2>Vendas no período</h2>
+      </div>
+      <div class="kpis main" id="k-vendas"></div>
+      <details class="more">
+        <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
+        <div class="more-body">
+          <div class="kpis" id="k-vendas-mais"></div>
+          <div class="charts">
+            <div class="card"><h3>Novos clientes por mês</h3><div class="chart-box"><canvas id="c-novos"></canvas></div></div>
+            <div class="card"><h3>Mensalidade fixa adicionada por mês</h3><div class="chart-box"><canvas id="c-mrr"></canvas></div></div>
+            <div class="card"><h3>Mensalidade fixa por hub</h3><div class="chart-box"><canvas id="c-hub"></canvas></div></div>
+            <div class="card"><h3>Clientes por modelo</h3><div class="chart-box"><canvas id="c-modelo"></canvas></div></div>
+          </div>
+        </div>
+      </details>
     </section>
-    <div class="card table-card">
-      <div style="padding:16px 16px 0"><h3>Fechamentos do período</h3></div>
-      <div class="table-wrap"><table class="data static"><thead><tr>
-        <th>Mês</th><th>Loja</th><th>Cliente</th><th>Hub</th><th>Modelo</th><th class="num">Mensalidade</th><th>Entrada real</th><th>ICP</th>
-      </tr></thead><tbody id="t-fech"></tbody></table></div>
-    </div>
+
+    <section class="dash-section">
+      <div class="section-head">
+        <span class="badge lilac">Base</span>
+        <h2>Base de clientes e entrada</h2>
+      </div>
+      <div class="kpis main" id="k-base"></div>
+      <details class="more">
+        <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
+        <div class="more-body">
+          <div class="card table-card">
+            <div style="padding:16px 16px 0"><h3>Fechamentos do período</h3></div>
+            <div class="table-wrap"><table class="data static"><thead><tr>
+              <th>Mês</th><th>Loja</th><th>Cliente</th><th>Hub</th><th>Modelo</th><th class="num">Mensalidade</th><th>Início previsto</th><th>Início real</th><th>ICP</th>
+            </tr></thead><tbody id="t-fech"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </section>
   </main>
   <script src="config.js"></script>
   <script src="store.js"></script>
@@ -58,16 +83,20 @@
       const upsells = rows.filter(r => r.novo_espaco_upsell).length;
       const semPgto = rows.filter(r => !r.data_primeiro_pagamento).length;
 
-      Dash.kpis('#kpis', [
+      Dash.kpis('#k-vendas', [
         { label: 'Novos clientes', value: fmt.num(rows.length, 0), sub: 'fechados no período' },
         { label: 'Mensalidade fixa adicionada', value: fmt.moneyShort(mrr), sub: fmt.money(mrr) + '/mês' },
         { label: 'Ticket médio (mensalidade)', value: fmt.money(Dash.avg(rows, 'mensalidade_fixa')) },
+      ]);
+      Dash.kpis('#k-vendas-mais', [
         { label: 'Taxa variável média', value: fmt.pct(Dash.avg(rows.filter(r => !isDK(r.modelo)), 'taxa_variavel_pct')), sub: `sem DK · ${fmt.money(Dash.sum(rows.filter(r => isDK(r.modelo)), 'taxa_variavel_rs'))}/mês em taxa variável DK (R$)` },
         { label: 'Clientes ICP', value: icpBase ? fmt.pct(icp / icpBase * 100) : '—', sub: `${icp} de ${icpBase} classificados` },
         { label: 'Upsells', value: fmt.num(upsells, 0), sub: 'com novo espaço registrado' },
-        { label: 'Atraso médio de entrada', value: atrasos.length ? fmt.num(Dash.avg(atrasos, 'd'), 0) + ' dias' : '—', sub: 'entrada real − contrato' },
+      ]);
+      Dash.kpis('#k-base', [
         { label: 'Base ativa', value: fmt.num(ativos.length, 0), sub: `${fmt.money(Dash.sum(ativos, 'mensalidade_fixa'))}/mês em mensalidades` },
-        ...(semPgto ? [{ label: 'Sem 1º pagamento', value: fmt.num(semPgto, 0), sub: 'fechamentos sem data do 1º pagamento' }] : []),
+        { label: 'Atraso médio de entrada', value: atrasos.length ? fmt.num(Dash.avg(atrasos, 'd'), 0) + ' dias' : '—', sub: 'início real − previsto em contrato' },
+        { label: 'Sem 1º pagamento', value: fmt.num(semPgto, 0), sub: 'fechamentos do período sem data do 1º pagamento' },
       ]);
 
       const months = dates.monthRange(from, to);
@@ -87,8 +116,8 @@
 
       $('#t-fech').innerHTML = [...rows].sort((a, b) => (mesRef(b) || '').localeCompare(mesRef(a) || '')).map(r => `<tr>
         <td>${fmt.month(mesRef(r))}</td><td>${esc(r.nome_loja)}</td><td>${esc(r.nome_cliente)}</td><td>${esc(r.hub || '—')}</td>
-        <td>${esc(r.modelo || '—')}</td><td class="num">${fmt.money(r.mensalidade_fixa)}</td><td>${fmt.date(r.data_entrada_real)}</td><td>${esc(r.icp || '—')}</td>
-      </tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhum fechamento no período.</td></tr>';
+        <td>${esc(r.modelo || '—')}</td><td class="num">${fmt.money(r.mensalidade_fixa)}</td><td>${fmt.date(r.data_entrada_contrato)}</td><td>${fmt.date(r.data_entrada_real)}</td><td>${esc(r.icp || '—')}</td>
+      </tr>`).join('') || '<tr><td colspan="9" class="empty">Nenhum fechamento no período.</td></tr>';
     }
 
     (async () => {
