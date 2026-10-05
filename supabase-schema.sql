@@ -43,7 +43,7 @@ $$;
 revoke all on function public.heartbeat(text) from public;
 grant execute on function public.heartbeat(text) to anon, authenticated;
 
--- Formulário público (formulario.html): grava as respostas na tabela 'leads' sem precisar de login.
+-- Formulário público (formulario-midias-sociais.html): grava as respostas na tabela 'leads' sem precisar de login.
 -- Aceita só os campos do formulário, limita o tamanho dos textos e não permite ler nem alterar nada.
 create or replace function public.enviar_lead(dados jsonb)
 returns text

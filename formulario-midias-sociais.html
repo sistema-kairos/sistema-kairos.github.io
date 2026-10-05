@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Fale com a Órion</title>
+  <meta name="description" content="Cozinhas e Centros de Distribuição de Delivery prontos para operar. Conte sua ideia e fale com um especialista Órion.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23000000'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%23CCFF00' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%23CCFF00' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <!-- fonte carregada sem bloquear a página (se o Google Fonts demorar, o formulário já funciona) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <style>
+    :root {
+      --lime: #ccff00;
+      --lime-dark: #b8e600;
+      --lilac: #c9b8e8;
+      --black: #000000;
+      --ink: #ffffff;
+      --ink-2: #b3b3b3;
+      --muted: #808080;
+      --line: rgba(255, 255, 255, .18);
+      --choice-bg: rgba(204, 255, 0, .06);
+      --choice-border: rgba(204, 255, 0, .45);
+      --error: #ff8a8a;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+      background: var(--black) radial-gradient(rgba(255, 255, 255, .05) 1.4px, transparent 1.4px);
+      background-size: 22px 22px;
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* ---------- topo ---------- */
+    .progress { position: fixed; inset: 0 0 auto 0; height: 4px; background: rgba(255, 255, 255, .08); z-index: 5; }
+    .progress i { display: block; height: 100%; width: 0; background: var(--lime); border-radius: 0 4px 4px 0; transition: width .5s var(--ease); }
+    .logo { position: fixed; top: 22px; left: 28px; z-index: 5; }
+    .logo img { height: 30px; display: block; }
+
+    /* ---------- palco das perguntas ---------- */
+    .stage { position: relative; height: 100%; height: 100dvh; }
+    .slide {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 90px 24px 110px; overflow-y: auto;
+      transition: transform .55s var(--ease), opacity .45s var(--ease);
+    }
+    .slide.below { transform: translateY(70px); opacity: 0; }
+    .slide.above { transform: translateY(-70px); opacity: 0; }
+    .slide.hidden-pos { pointer-events: none; }
+    .q { width: min(720px, 100%); }
+    .q-head { display: flex; gap: 14px; align-items: flex-start; }
+    .q-num { color: var(--lime); font-weight: 700; font-size: 16px; line-height: 1; padding-top: 12px; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+    .q-num svg { width: 14px; height: 14px; }
+    .q-body { flex: 1; min-width: 0; }
+    .q-title { font-size: clamp(22px, 3.4vw, 30px); font-weight: 600; line-height: 1.3; margin: 0; letter-spacing: -.01em; }
+    .q-title .req { color: var(--lime); }
+    .q-sub { color: var(--ink-2); font-size: clamp(16px, 2.2vw, 20px); margin: 10px 0 0; line-height: 1.45; }
+
+    /* campo de texto estilo typeform */
+    .answer {
+      width: 100%; margin-top: 30px; padding: 6px 0 10px; border: 0; border-bottom: 2px solid var(--line);
+      background: transparent; color: var(--lime); font: inherit; font-size: clamp(20px, 3vw, 28px); outline: none;
+      transition: border-color .2s;
+    }
+    .answer::placeholder { color: rgba(204, 255, 0, .32); }
+    .answer:focus { border-bottom-color: var(--lime); }
+    textarea.answer { resize: none; min-height: 52px; max-height: 40vh; line-height: 1.4; }
+
+    /* opções */
+    .choices { margin-top: 28px; display: grid; gap: 10px; max-width: 460px; }
+    .choice {
+      display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+      padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--choice-border); background: var(--choice-bg);
+      color: var(--ink); font: inherit; font-size: 17px; transition: background .15s, border-color .15s;
+    }
+    .choice:hover { background: rgba(204, 255, 0, .14); }
+    .choice:focus-visible { outline: 2px solid var(--lilac); outline-offset: 2px; }
+    .choice .key {
+      flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px;
+      border: 1.5px solid var(--choice-border); color: var(--lime); font-size: 13px; font-weight: 700; background: var(--black);
+    }
+    .choice .tick { margin-left: auto; opacity: 0; color: var(--lime); }
+    .choice.selected { border-color: var(--lime); background: rgba(204, 255, 0, .18); }
+    .choice.selected .key { background: var(--lime); color: var(--black); border-color: var(--lime); }
+    .choice.selected .tick { opacity: 1; }
+    .choice.blink { animation: blink .38s steps(1) 1; }
+    @keyframes blink { 0%, 50% { background: rgba(204, 255, 0, .32); } 25%, 75% { background: rgba(204, 255, 0, .08); } }
+    .choice.back { border-style: dashed; border-color: var(--line); background: transparent; color: var(--ink-2); }
+    .choice.back .key { border-color: var(--line); color: var(--ink-2); }
+
+    /* ações */
+    .actions { display: flex; align-items: center; gap: 14px; margin-top: 26px; flex-wrap: wrap; }
+    .ok {
+      display: inline-flex; align-items: center; gap: 8px; padding: 11px 24px; border-radius: 999px; border: 0; cursor: pointer;
+      background: var(--lime); color: var(--black); font: inherit; font-weight: 700; font-size: 17px;
+      transition: transform .14s var(--ease), filter .14s;
+    }
+    .ok:hover { filter: brightness(.93); }
+    .ok:active { transform: scale(.96); }
+    .ok:disabled { opacity: .6; cursor: wait; }
+    .ok svg { width: 16px; height: 16px; }
+    .hint { color: var(--muted); font-size: 13px; }
+    .hint b { color: var(--ink-2); font-weight: 600; }
+    .err {
+      display: none; align-items: center; gap: 8px; margin-top: 16px; padding: 6px 12px; border-radius: 8px;
+      background: rgba(255, 138, 138, .12); color: var(--error); font-size: 14px; width: fit-content;
+    }
+    .err.show { display: inline-flex; animation: shake .35s; }
+    @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+
+    /* tela final */
+    .done { text-align: center; }
+    .done .badge-ok { width: 72px; height: 72px; border-radius: 50%; background: var(--lime); color: var(--black); display: grid; place-items: center; margin: 0 auto 26px; }
+    .done .badge-ok svg { width: 34px; height: 34px; }
+    .done h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -.02em; margin: 0; }
+    .done p { color: var(--ink-2); font-size: 18px; max-width: 520px; margin: 14px auto 0; line-height: 1.5; }
+    .done .tagline { color: var(--lime); font-weight: 600; margin-top: 30px; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; }
+
+    /* navegação inferior */
+    .nav { position: fixed; right: 24px; bottom: 22px; display: flex; gap: 2px; z-index: 5; }
+    .nav button {
+      width: 40px; height: 36px; border: 0; background: var(--lime); color: var(--black); cursor: pointer; display: grid; place-items: center;
+    }
+    .nav button:first-child { border-radius: 8px 0 0 8px; }
+    .nav button:last-child { border-radius: 0 8px 8px 0; }
+    .nav button:disabled { opacity: .35; cursor: default; }
+    .nav svg { width: 18px; height: 18px; }
+    .brandline { position: fixed; left: 28px; bottom: 26px; color: var(--muted); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; z-index: 5; }
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+    @media (max-width: 600px) {
+      .logo { top: 18px; left: 16px; }
+      .logo img { height: 24px; }
+      .slide { padding: 76px 16px 96px; align-items: flex-start; padding-top: 22vh; }
+      .q-head { flex-direction: column; gap: 8px; }
+      .q-num { padding-top: 0; }
+      .choice { font-size: 16px; }
+      .hint { display: none; }
+      .nav { right: 16px; bottom: 16px; }
+      .brandline { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .slide, .progress i { transition-duration: .01s; }
+      .choice.blink, .err.show { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+  <div class="logo"><img src="assets/logo-wordmark-lime.png" alt="Órion"></div>
+  <main class="stage" id="stage" aria-live="polite"></main>
+  <!-- campo isca contra robôs: pessoas não veem nem preenchem -->
+  <input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <div class="brandline">Órion · Te levamos além</div>
+  <div class="nav">
+    <button id="prev" aria-label="Pergunta anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>
+    <button id="next" aria-label="Próxima pergunta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="store.js"></script>
+  <script>
+    const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    const ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const primeiroNome = a => {
+      const n = (a.nome || '').trim().split(/\s+/)[0] || '';
+      return n ? n.charAt(0).toUpperCase() + n.slice(1) : '';
+    };
+    const maskPhone = v => {
+      const d = v.replace(/\D/g, '').slice(0, 11);
+      if (d.length <= 2) return d ? `(${d}` : '';
+      if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+      if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+      return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    };
+
+    const VENDE = 'Já vendo por delivery';
+    const NAO_APPS = 'Não vendo por apps';
+
+    // Perguntas do formulário. `skip` esconde a pergunta conforme as respostas anteriores.
+    const STEPS = [
+      { key: 'nome', type: 'text', title: () => 'Olá, qual o seu nome?', placeholder: 'Digite seu nome aqui…', autocomplete: 'name',
+        validate: v => v.trim().length >= 2 || 'Por favor, informe seu nome' },
+      { key: 'telefone', type: 'tel', title: a => `${primeiroNome(a)}, qual o seu telefone para contato?`, placeholder: '(31) 99999-9999', autocomplete: 'tel',
+        validate: v => [10, 11].includes(v.replace(/\D/g, '').length) || 'Informe um telefone com DDD' },
+      { key: 'email', type: 'email', title: a => `${primeiroNome(a)}, qual o seu melhor e-mail para contato?`, placeholder: 'nome@exemplo.com', autocomplete: 'email',
+        validate: v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) || 'Hmm… esse e-mail não parece válido' },
+      { key: 'situacao_delivery', type: 'choice', title: () => 'Atualmente você:',
+        options: [VENDE, 'Parei com o delivery', 'Nunca vendi'] },
+      { key: 'vende_apps', type: 'choice', title: () => 'Legal, e você já vende por aplicativos como iFood, 99 ou Keeta?',
+        options: ['Sim, vendo nos apps', NAO_APPS, { label: 'Voltar', back: true }] },
+      { key: 'pedidos_mes', type: 'choice', title: () => 'Ótimo! Tenho certeza que podemos te ajudar. Atualmente, quantos pedidos sua loja recebe por mês?',
+        options: ['Mais de 400 pedidos', 'De 150 a 400', 'De 60 a 150', 'Menos de 60'],
+        skip: a => a.situacao_delivery !== VENDE || a.vende_apps === NAO_APPS },
+      { key: 'nome_loja', type: 'text', title: () => 'Qual o nome da sua loja do iFood ou empresa?', placeholder: 'Digite o nome aqui…', autocomplete: 'organization',
+        validate: v => v.trim().length >= 2 || 'Por favor, informe o nome da loja ou empresa' },
+      { key: 'prazo_inicio', type: 'choice', title: () => 'Em quanto tempo pretende começar?',
+        options: ['Imediatamente', 'Entre 1 e 3 meses', 'Acima de 3 meses'] },
+      { key: 'ideia', type: 'textarea', title: () => 'Agora vem a pergunta mais importante:',
+        sub: 'Conte mais sobre a sua ideia de negócio, para que um de nossos especialistas possa entrar em contato com você.',
+        placeholder: 'Escreva sua resposta aqui…',
+        validate: v => v.trim().length >= 5 || 'Conte um pouco mais, por favor' },
+    ];
+
+    const answers = {};
+    const params = new URLSearchParams(location.search);
+    ['utm_source', 'utm_medium', 'utm_campaign'].forEach(k => { if (params.get(k)) answers[k] = params.get(k); });
+
+    const stage = document.getElementById('stage');
+    const visible = () => STEPS.filter(s => !s.skip || !s.skip(answers));
+    let current = 0;      // índice em STEPS
+    let busy = false;     // durante a transição
+    let sent = false;
+
+    function nextIndex(from, dir) {
+      let i = from + dir;
+      while (i >= 0 && i < STEPS.length && STEPS[i].skip && STEPS[i].skip(answers)) i += dir;
+      return i;
+    }
+
+    function slideHTML(step) {
+      const vis = visible();
+      const n = vis.indexOf(step) + 1;
+      const isLast = n === vis.length;
+      const v = answers[step.key] ?? '';
+      let field = '';
+      if (step.type === 'choice') {
+        field = `<div class="choices" role="radiogroup">${step.options.map((o, i) => {
+          const label = typeof o === 'string' ? o : o.label;
+          const back = typeof o === 'object' && o.back;
+          return `<button type="button" class="choice ${back ? 'back' : ''} ${!back && v === label ? 'selected' : ''}" data-i="${i}" role="radio" aria-checked="${!back && v === label}">
+            <span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(label)}</span><span class="tick">${ICON_CHECK}</span></button>`;
+        }).join('')}</div>`;
+      } else if (step.type === 'textarea') {
+        field = `<textarea class="answer" rows="1" placeholder="${esc(step.placeholder)}" maxlength="4000">${esc(v)}</textarea>`;
+      } else {
+        const t = step.type === 'tel' ? 'tel' : step.type === 'email' ? 'email' : 'text';
+        field = `<input class="answer" type="${t}" value="${esc(v)}" placeholder="${esc(step.placeholder)}" autocomplete="${step.autocomplete || 'off'}" maxlength="200"
+          ${t === 'tel' ? 'inputmode="tel"' : ''} ${t === 'email' ? 'inputmode="email" autocapitalize="off" spellcheck="false"' : ''}>`;
+      }
+      const hint = step.type === 'textarea' ? '<b>Shift ⇧ + Enter ↵</b> para quebrar linha' : 'pressione <b>Enter ↵</b>';
+      const actions = step.type === 'choice' ? '' : `<div class="actions">
+          <button type="button" class="ok">${isLast ? 'Enviar' : 'OK'} ${ICON_CHECK}</button><span class="hint">${hint}</span></div>`;
+      return `<div class="q"><div class="q-head">
+          <div class="q-num">${n} ${ICON_ARROW}</div>
+          <div class="q-body">
+            <h2 class="q-title">${esc(step.title(answers))}</h2>
+            ${step.sub ? `<p class="q-sub">${esc(step.sub)}</p>` : ''}
+            ${field}
+            <div class="err" role="alert"></div>
+            ${actions}
+          </div></div></div>`;
+    }
+
+    function updateChrome() {
+      const vis = visible();
+      const pos = sent ? vis.length : vis.indexOf(STEPS[current]);
+      document.getElementById('bar').style.width = `${Math.max(0, pos) / vis.length * 100}%`;
+      document.getElementById('prev').disabled = sent || nextIndex(current, -1) < 0;
+      document.getElementById('next').disabled = sent;
+    }
+
+    // troca de tela com a transição (dir = 1 avança / -1 volta)
+    function show(html, dir, after) {
+      const old = stage.querySelector('.slide:not(.leaving)');
+      const el = document.createElement('section');
+      el.className = `slide ${dir >= 0 ? 'below' : 'above'}`;
+      el.innerHTML = html;
+      stage.appendChild(el);
+      busy = true;
+      old?.classList.add('leaving', 'hidden-pos');
+      // a animação começa no próximo quadro; o setTimeout garante a troca mesmo com a aba em segundo plano
+      let started = false;
+      const start = () => {
+        if (started) return;
+        started = true;
+        el.classList.remove('below', 'above');
+        old?.classList.add(dir >= 0 ? 'above' : 'below');
+      };
+      requestAnimationFrame(() => requestAnimationFrame(start));
+      setTimeout(start, 80);
+      setTimeout(() => { old?.remove(); busy = false; }, old ? 560 : 0);
+      after?.(el);
+    }
+
+    function render(dir = 1) {
+      const step = STEPS[current];
+      show(slideHTML(step), dir, el => bind(el, step));
+      updateChrome();
+    }
+
+    function bind(el, step) {
+      const input = el.querySelector('.answer');
+      if (input) {
+        if (step.type === 'tel') input.addEventListener('input', () => { input.value = maskPhone(input.value); });
+        if (step.type === 'textarea') {
+          const grow = () => { input.style.height = 'auto'; input.style.height = input.scrollHeight + 'px'; };
+          input.addEventListener('input', grow); grow();
+        }
+        input.addEventListener('input', () => el.querySelector('.err').classList.remove('show'));
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !(step.type === 'textarea' && e.shiftKey)) { e.preventDefault(); submitStep(); }
+        });
+        setTimeout(() => input.focus({ preventScroll: true }), 420);
+      }
+      el.querySelector('.ok')?.addEventListener('click', submitStep);
+      el.querySelectorAll('.choice').forEach(b => b.addEventListener('click', () => pick(step, +b.dataset.i, b)));
+    }
+
+    function showError(msg) {
+      const err = stage.querySelector('.slide:not(.leaving) .err');
+      if (!err) return;
+      err.textContent = msg;
+      err.classList.remove('show'); void err.offsetWidth; err.classList.add('show');
+    }
+
+    function pick(step, i, btn) {
+      if (busy) return;
+      const o = step.options[i];
+      if (typeof o === 'object' && o.back) { go(-1); return; }
+      answers[step.key] = o;
+      const slide = btn.closest('.slide');
+      slide.querySelectorAll('.choice').forEach(b => { b.classList.toggle('selected', b === btn); b.setAttribute('aria-checked', b === btn); });
+      btn.classList.add('blink');
+      busy = true;
+      setTimeout(() => { busy = false; advance(); }, 420);
+    }
+
+    function submitStep() {
+      if (busy) return;
+      const step = STEPS[current];
+      if (step.type === 'choice') {
+        if (!answers[step.key]) return showError('Escolha uma das opções');
+        return advance();
+      }
+      const input = stage.querySelector('.slide:not(.leaving) .answer');
+      const v = input.value;
+      const ok = step.validate ? step.validate(v) : true;
+      if (ok !== true) { showError(ok); input.focus(); return; }
+      answers[step.key] = v.trim();
+      advance();
+    }
+
+    function advance() {
+      const n = nextIndex(current, 1);
+      if (n >= STEPS.length) return send();
+      current = n;
+      render(1);
+    }
+
+    function go(dir) {
+      if (busy || sent) return;
+      if (dir > 0) return submitStep();
+      const n = nextIndex(current, -1);
+      if (n < 0) return;
+      current = n;
+      render(-1);
+    }
+
+    async function send() {
+      const btn = stage.querySelector('.slide:not(.leaving) .ok');
+      if (btn) { btn.disabled = true; btn.innerHTML = 'Enviando…'; }
+      const dados = {};
+      STEPS.forEach(s => { if (!(s.skip && s.skip(answers)) && answers[s.key] !== undefined) dados[s.key] = answers[s.key]; });
+      ['utm_source', 'utm_medium', 'utm_campaign'].forEach(k => { if (answers[k]) dados[k] = answers[k]; });
+      try {
+        if (document.getElementById('hp').value) { /* robô: finge sucesso sem gravar */ }
+        else if (Store.isRemote()) {
+          const s = Store.settings();
+          const r = await fetch(`${s.supabaseUrl}/rest/v1/rpc/enviar_lead`, {
+            method: 'POST',
+            headers: { apikey: s.supabaseAnonKey, Authorization: `Bearer ${s.supabaseAnonKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dados }),
+          });
+          if (!r.ok) throw new Error(await r.text());
+        } else {
+          // modo local (sem Supabase): guarda neste navegador, para testes
+          const key = 'gh_data_leads';
+          const all = JSON.parse(localStorage.getItem(key) || '[]');
+          const now = new Date().toISOString();
+          all.unshift({ ...dados, id: Store.uid(), status: 'Novo', recebido_em: now, updated_at: now });
+          localStorage.setItem(key, JSON.stringify(all));
+        }
+      } catch (e) {
+        console.error(e);
+        if (btn) { btn.disabled = false; btn.innerHTML = `Tentar novamente ${ICON_CHECK}`; }
+        showError('Não foi possível enviar agora. Verifique sua conexão e tente de novo.');
+        return;
+      }
+      sent = true;
+      const nome = primeiroNome(answers);
+      show(`<div class="q done">
+          <div class="badge-ok">${ICON_CHECK}</div>
+          <h1>Obrigado${nome ? ', ' + esc(nome) : ''}!</h1>
+          <p>Recebemos suas respostas. Um de nossos especialistas vai entrar em contato com você em breve.</p>
+          <div class="tagline">Te levamos além.</div>
+        </div>`, 1);
+      updateChrome();
+    }
+
+    document.getElementById('prev').addEventListener('click', () => go(-1));
+    document.getElementById('next').addEventListener('click', () => go(1));
+    // atalhos de teclado: letras escolhem a opção
+    document.addEventListener('keydown', e => {
+      if (sent || busy || e.metaKey || e.ctrlKey || e.altKey) return;
+      const step = STEPS[current];
+      if (step.type === 'choice' && /^[a-z]$/i.test(e.key)) {
+        const i = e.key.toUpperCase().charCodeAt(0) - 65;
+        const btn = stage.querySelector(`.slide:not(.leaving) .choice[data-i="${i}"]`);
+        if (btn) { e.preventDefault(); pick(step, i, btn); }
+      } else if (step.type === 'choice' && e.key === 'Enter') {
+        e.preventDefault(); submitStep();
+      }
+    });
+    render(1);
+  </script>
+</body>
+</html>

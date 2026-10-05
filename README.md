@@ -13,7 +13,7 @@ Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as pl
 | Dashboard CS | `dashboard-cs.html` | Solicitações, mensalidade perdida, churn, tempo de vida, saídas nos próximos 30 dias, reuniões de A.P pendentes |
 | Status dos Sistemas | `sistemas.html` | Aberto/fechado de cada hub, ChatPro e push de pedidos, com atualização automática, histórico e alerta sonoro/notificação |
 | Leads do formulário | `leads.html` | Respostas do formulário público, com status de atendimento, resumo e link para divulgar |
-| Formulário (público) | `formulario.html` | Formulário estilo Typeform para captar interessados. Não pede login |
+| Formulário (público) | `formulario-midias-sociais.html` | Formulário estilo Typeform para captar interessados. Não pede login |
 | Configurações | `configuracoes.html` | Banco de dados, modo de verificação de cada serviço, backup |
 
 ## 1. Publicar no GitHub Pages
@@ -93,7 +93,7 @@ python3 -m http.server 8000
 
 ## Formulário público de leads
 
-O link para divulgar é `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/formulario.html` (também aparece na aba **Leads do formulário**, com botão de copiar).
+O link para divulgar é `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/formulario-midias-sociais.html` (também aparece na aba **Leads do formulário**, com botão de copiar).
 Quem preenche não precisa de login: as respostas são gravadas pela função `enviar_lead` do Supabase, que só aceita os campos do formulário.
 
 - **Ativar:** rode novamente o [`supabase-schema.sql`](supabase-schema.sql) no SQL Editor do Supabase (o script pode ser executado mais de uma vez). Sem esse passo o formulário mostra "Não foi possível enviar".

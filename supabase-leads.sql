@@ -1,5 +1,5 @@
 -- Cole TODO este arquivo no Supabase: SQL Editor > New query > Run.
--- Cria a função que grava as respostas do formulário público (formulario.html).
+-- Cria a função que grava as respostas do formulário público (formulario-midias-sociais.html).
 create or replace function public.enviar_lead(dados jsonb)
 returns text
 language plpgsql

@@ -62,7 +62,7 @@ const CS_FIELDS = [
   { key: 'observacoes', label: 'Observações', type: 'textarea' },
 ];
 
-// Respostas do formulário público (formulario.html), gravadas pela função enviar_lead do Supabase
+// Respostas do formulário público (formulario-midias-sociais.html), gravadas pela função enviar_lead do Supabase
 const LEAD_STATUS = ['Novo', 'Em contato', 'Qualificado', 'Convertido', 'Descartado'];
 
 const LEADS_FIELDS = [
