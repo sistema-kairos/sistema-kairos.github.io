@@ -74,3 +74,6 @@ $$;
 
 revoke all on function public.enviar_lead(jsonb) from public;
 grant execute on function public.enviar_lead(jsonb) to anon, authenticated;
+
+-- faz a API do Supabase enxergar as funções novas imediatamente
+notify pgrst, 'reload schema';
