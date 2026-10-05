@@ -147,6 +147,7 @@ const NAV = [
   { group: 'Cadastros', items: [
     { page: 'comercial', href: 'comercial.html', label: 'Comercial' },
     { page: 'cs', href: 'cs.html', label: 'CS' },
+    { page: 'leads', href: 'leads.html', label: 'Leads do formulário' },
   ] },
   { group: 'Dashboards', items: [
     { page: 'dash-comercial', href: 'dashboard-comercial.html', label: 'Dashboard Comercial' },

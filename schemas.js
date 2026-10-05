@@ -1,5 +1,5 @@
 // Definição dos campos de cada cadastro. Para adicionar/alterar colunas, edite aqui.
-// type: text | textarea | money | percent | int | date | month | select | email | tel | cnpj | months
+// type: text | textarea | money | percent | int | date | datetime | month | select | email | tel | cnpj | months
 // list: aparece na tabela | suggest: sugere valores já usados | aliases: nomes alternativos na importação
 
 const COMERCIAL_FIELDS = [
@@ -60,4 +60,25 @@ const CS_FIELDS = [
   },
   { key: 'reuniao_ap', label: 'Reunião de A.P', type: 'select', options: REUNIAO_AP, default: 'Pendente', list: true, aliases: ['Reunião de AP', 'Reuniao A.P'] },
   { key: 'observacoes', label: 'Observações', type: 'textarea' },
+];
+
+// Respostas do formulário público (formulario.html), gravadas pela função enviar_lead do Supabase
+const LEAD_STATUS = ['Novo', 'Em contato', 'Qualificado', 'Convertido', 'Descartado'];
+
+const LEADS_FIELDS = [
+  { key: 'nome', label: 'Nome', type: 'text', required: true, list: true },
+  { key: 'recebido_em', label: 'Recebido em', type: 'datetime', list: true },
+  { key: 'status', label: 'Status', type: 'select', options: LEAD_STATUS, default: 'Novo', list: true },
+  { key: 'telefone', label: 'Telefone', type: 'tel', list: true },
+  { key: 'email', label: 'E-mail', type: 'email', list: true },
+  { key: 'nome_loja', label: 'Loja / empresa', type: 'text', list: true },
+  { key: 'situacao_delivery', label: 'Delivery hoje', type: 'select', options: ['Já vendo por delivery', 'Parei com o delivery', 'Nunca vendi'], list: true },
+  { key: 'vende_apps', label: 'Vende em apps', type: 'select', options: ['Sim, vendo nos apps', 'Não vendo por apps'], list: true },
+  { key: 'pedidos_mes', label: 'Pedidos/mês', type: 'select', options: ['Mais de 400 pedidos', 'De 150 a 400', 'De 60 a 150', 'Menos de 60'], list: true },
+  { key: 'prazo_inicio', label: 'Quer começar', type: 'select', options: ['Imediatamente', 'Entre 1 e 3 meses', 'Acima de 3 meses'], list: true },
+  { key: 'ideia', label: 'Ideia de negócio', type: 'textarea' },
+  { key: 'observacoes', label: 'Observações internas', type: 'textarea' },
+  { key: 'utm_source', label: 'Origem (utm_source)', type: 'text' },
+  { key: 'utm_medium', label: 'Mídia (utm_medium)', type: 'text' },
+  { key: 'utm_campaign', label: 'Campanha (utm_campaign)', type: 'text' },
 ];

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>Leads · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23000000'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%23CCFF00' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%23CCFF00' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="leads">
+  <main class="content">
+    <header class="page-head">
+      <div><h1>Leads do formulário</h1><p>Respostas recebidas pelo formulário público, atualizadas automaticamente</p></div>
+    </header>
+
+    <div class="card form-link">
+      <div>
+        <div class="kpi"><div class="label">Link do formulário</div></div>
+        <a id="form-url" target="_blank" rel="noopener"></a>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="copy">Copiar link</button>
+      <a class="btn primary" id="open" target="_blank" rel="noopener">Abrir formulário</a>
+    </div>
+
+    <section class="dash-section">
+      <div class="section-head">
+        <span class="badge lime">Captação</span>
+        <h2>Resumo dos leads</h2>
+        <span class="muted small" id="updated"></span>
+      </div>
+      <div class="kpis main" id="k-leads"></div>
+      <details class="more">
+        <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
+        <div class="more-body">
+          <div class="kpis" id="k-leads-mais"></div>
+        </div>
+      </details>
+    </section>
+
+    <div id="crud"></div>
+  </main>
+  <script src="config.js"></script>
+  <script src="store.js"></script>
+  <script src="common.js"></script>
+  <script src="schemas.js"></script>
+  <script src="crud.js"></script>
+  <script src="dash.js"></script>
+  <script>
+    const url = new URL('formulario.html', location.href).href;
+    $('#form-url').textContent = url;
+    $('#form-url').href = url;
+    $('#open').href = url;
+    $('#copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(url); toast('Link copiado', 'ok'); }
+      catch { prompt('Copie o link do formulário:', url); }
+    });
+
+    const page = CrudPage({ el: '#crud', table: 'leads', fields: LEADS_FIELDS, filterKey: 'status', sortKey: 'recebido_em' });
+
+    const pct = (n, d) => d ? fmt.pct(Math.round(n / d * 1000) / 10) : '—';
+    async function resumo() {
+      let leads = [];
+      try { leads = await Store.list('leads'); } catch { return; }
+      const now = Date.now();
+      const dias = d => leads.filter(l => l.recebido_em && now - new Date(l.recebido_em) <= d * 86400000).length;
+      const novos = leads.filter(l => (l.status || 'Novo') === 'Novo').length;
+      const vendem = leads.filter(l => l.situacao_delivery === 'Já vendo por delivery').length;
+      const imediato = leads.filter(l => l.prazo_inicio === 'Imediatamente').length;
+      const convertidos = leads.filter(l => l.status === 'Convertido').length;
+      const grandes = leads.filter(l => l.pedidos_mes === 'Mais de 400 pedidos').length;
+      Dash.kpis('#k-leads', [
+        { label: 'Leads recebidos', value: fmt.num(leads.length, 0), sub: `${dias(7)} nos últimos 7 dias` },
+        { label: 'Aguardando contato', value: fmt.num(novos, 0), sub: 'com status "Novo"' },
+        { label: 'Querem começar já', value: fmt.num(imediato, 0), sub: `${pct(imediato, leads.length)} dos leads` },
+      ]);
+      Dash.kpis('#k-leads-mais', [
+        { label: 'Últimos 30 dias', value: fmt.num(dias(30), 0), sub: 'leads recebidos' },
+        { label: 'Já vendem por delivery', value: pct(vendem, leads.length), sub: `${vendem} de ${leads.length} leads` },
+        { label: 'Mais de 400 pedidos/mês', value: fmt.num(grandes, 0), sub: 'operações maiores' },
+        { label: 'Convertidos', value: fmt.num(convertidos, 0), sub: `${pct(convertidos, leads.length)} dos leads` },
+      ]);
+      $('#updated').textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    resumo();
+    // novas respostas aparecem sozinhas (sem atrapalhar quem está editando um lead)
+    setInterval(() => { if (!document.querySelector('dialog[open]')) { page.reload(); resumo(); } }, 60000);
+    document.addEventListener('close', resumo, true);
+  </script>
+</body>
+</html>

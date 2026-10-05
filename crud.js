@@ -39,6 +39,7 @@ function CrudPage(opts) {
       case 'money': return fmt.money(v);
       case 'percent': return fmt.pct(v);
       case 'date': return fmt.date(v);
+      case 'datetime': return fmt.dateTime(v);
       case 'month': return fmt.month(v);
       case 'months': return isBlank(v) ? '—' : `${fmt.num(v)} meses`;
       case 'int': return fmt.num(v, 0);
@@ -62,7 +63,7 @@ function CrudPage(opts) {
     $('thead', root).innerHTML = `<tr>${listFields.map(f =>
       `<th data-key="${f.key}" class="${numeric(f) ? 'num' : ''}">${esc(f.label)}${sortKey === f.key ? (sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr>`;
     $('tbody', root).innerHTML = shown.map(r =>
-      `<tr data-id="${esc(r.id)}">${listFields.map(f => `<td class="${numeric(f) ? 'num' : ''}">${cell(f, r[f.key])}</td>`).join('')}</tr>`).join('');
+      `<tr data-id="${esc(r.id)}">${listFields.map(f => `<td class="${numeric(f) ? 'num' : ['tel', 'date', 'datetime', 'month'].includes(f.type) ? 'nowrap' : ''}">${cell(f, r[f.key])}</td>`).join('')}</tr>`).join('');
     $('.empty', root).classList.toggle('hidden', shown.length > 0);
     $('.count', root).textContent = `${shown.length} de ${rows.length} registros`;
 
@@ -108,6 +109,9 @@ function CrudPage(opts) {
       case 'date': case 'month': case 'email': case 'tel':
         input = `<input class="input" type="${f.type}" value="${val}" ${attrs}>`;
         break;
+      case 'datetime': // só exibição; o valor original é mantido ao salvar
+        input = `<input class="input" type="text" value="${esc(fmt.dateTime(v))}" readonly tabindex="-1">`;
+        break;
       default: {
         const dl = datalistFor(f);
         input = `<input class="input" type="text" value="${val}" ${dl ? `list="dl_${f.key}"` : ''} ${f.type === 'cnpj' ? 'placeholder="00.000.000/0000-00" maxlength="18"' : ''} ${attrs}>${dl}`;
@@ -121,6 +125,7 @@ function CrudPage(opts) {
   function readForm(form) {
     const rec = {};
     for (const f of fields) {
+      if (f.type === 'datetime') continue;
       const raw = form.elements[f.key]?.value?.trim() ?? '';
       rec[f.key] = ['money', 'percent', 'int', 'months'].includes(f.type) ? parse.num(raw) : (raw || null);
     }
@@ -216,6 +221,7 @@ function CrudPage(opts) {
   function exportValue(f, v) {
     if (isBlank(v)) return '';
     if (f.type === 'date') return fmt.date(v);
+    if (f.type === 'datetime') return fmt.dateTime(v);
     if (f.type === 'month') return `${v.slice(5, 7)}/${v.slice(0, 4)}`;
     if (typeof v === 'number') return String(v).replace('.', ',');
     return String(v);
