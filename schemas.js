@@ -82,3 +82,17 @@ const LEADS_FIELDS = [
   { key: 'utm_medium', label: 'Mídia (utm_medium)', type: 'text' },
   { key: 'utm_campaign', label: 'Campanha (utm_campaign)', type: 'text' },
 ];
+
+// Perfis de acesso (aba Sistema → Permissões). O id do registro é o e-mail em minúsculas.
+const PAPEIS = ['Administrador', 'Utilizador', 'Espectador'];
+const AREAS_ACESSO = ['Comercial', 'CS', 'MKT', 'Todas as áreas'];
+
+const PERFIS_FIELDS = [
+  { key: 'email', label: 'E-mail de login', type: 'email', required: true, list: true, lockOnEdit: true,
+    hint: 'O mesmo e-mail usado para entrar no sistema.' },
+  { key: 'nome', label: 'Nome', type: 'text', list: true },
+  { key: 'papel', label: 'Perfil', type: 'select', options: PAPEIS, required: true, default: 'Utilizador', list: true },
+  { key: 'area', label: 'Área', type: 'select', options: AREAS_ACESSO, list: true,
+    forced: r => r.papel === 'Administrador' ? null : undefined,
+    hint: 'Utilizador: a área que ele pode ver e alterar. Espectador: a área que ele pode ver (ou todas).' },
+];

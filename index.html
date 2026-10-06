@@ -21,10 +21,12 @@
   <script src="monitor.js"></script>
   <script>
     (async () => {
-      let comercial = [], cs = [], status = [], beats = [], cfg;
+      if (window.SEM_ACESSO) return;
+      const ler = t => Store.podeLer(t) ? Store.list(t) : Promise.resolve([]);
+      let comercial = [], cs = [], crm = [], leads = [], status = [], beats = [], cfg;
       try {
-        [comercial, cs, status, beats, cfg] = await Promise.all([
-          Store.list('comercial'), Store.list('cs'), Store.list('status'), Store.list('heartbeat'), Monitor.loadConfig()]);
+        [comercial, cs, crm, leads, status, beats, cfg] = await Promise.all([
+          ler('comercial'), ler('cs'), ler('crm'), ler('leads'), Store.list('status'), Store.list('heartbeat'), Monitor.loadConfig()]);
       } catch (e) { toast('Erro ao carregar dados: ' + e.message, 'error'); cfg = Monitor.DEFAULT; }
 
       const today = dates.today(), mes = today.slice(0, 7);
@@ -39,17 +41,22 @@
       const res = await Promise.all(cfg.servicos.map(s => Monitor.check(s, M[s.id], B[s.id])));
       const down = cfg.servicos.filter((s, i) => res[i].status === 'down');
 
+      const abertas = crm.filter(d => d.etapa !== 'Perdido' && d.etapa !== 'Negócio fechado');
+      const semContato = crm.filter(d => (d.etapa || 'Sem contato') === 'Sem contato').length;
+      const leadsNovos = leads.filter(l => (l.status || 'Novo') === 'Novo').length;
       const cards = [
-        { href: 'comercial.html', title: 'Comercial', value: fmt.num(ativos.length, 0) + ' clientes ativos', sub: `${novosMes} fechamentos neste mês` },
-        { href: 'cs.html', title: 'CS', value: prox30 + ' saídas em 30 dias', sub: `${pendAP} reuniões de A.P pendentes` },
-        { href: 'dashboard-comercial.html', title: 'Dashboard Comercial', value: fmt.moneyShort(somaMensalidades(ativos)), sub: 'em mensalidades fixas ativas/mês' },
-        { href: 'dashboard-cs.html', title: 'Dashboard CS', value: cs.length + ' solicitações', sub: 'de saída registradas no total' },
+        { area: 'Comercial', href: 'crm.html', title: 'CRM', value: abertas.length + ' negociações abertas', sub: `${semContato} aguardando primeiro contato` },
+        { area: 'Comercial', href: 'comercial.html', title: 'Comercial', value: fmt.num(ativos.length, 0) + ' clientes ativos', sub: `${novosMes} fechamentos neste mês` },
+        { area: 'CS', href: 'cs.html', title: 'CS', value: prox30 + ' saídas em 30 dias', sub: `${pendAP} reuniões de A.P pendentes` },
+        { area: 'Comercial', href: 'dashboard-comercial.html', title: 'Dashboard Comercial', value: fmt.moneyShort(somaMensalidades(ativos)), sub: 'em mensalidades fixas ativas/mês' },
+        { area: 'CS', href: 'dashboard-cs.html', title: 'Dashboard CS', value: cs.length + ' solicitações', sub: 'de saída registradas no total' },
+        { area: 'MKT', href: 'leads.html', title: 'Leads do formulário', value: leads.length + ' leads', sub: `${leadsNovos} aguardando contato` },
         { href: 'sistemas.html', title: 'Status dos Sistemas',
           value: down.length ? `<span class="badge down">✕ ${down.length} com problema</span>` : '<span class="badge ok">● Tudo operando</span>',
           sub: down.length ? down.map(s => esc(s.nome)).join(', ') : `${cfg.servicos.length} serviços monitorados` },
       ];
       function somaMensalidades(arr) { return arr.reduce((s, r) => s + (Number(r.mensalidade_fixa) || 0), 0); }
-      $('#home').innerHTML = cards.map(c => `
+      $('#home').innerHTML = cards.filter(c => Store.veArea(c.area)).map(c => `
         <a class="card home-card" href="${c.href}"><strong>${c.title}</strong>
         <span class="value">${c.value}</span><span class="muted small">${c.sub}</span></a>`).join('');
     })();

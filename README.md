@@ -7,6 +7,7 @@ Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as pl
 | Página | Arquivo | O que faz |
 |---|---|---|
 | Início | `index.html` | Resumo rápido de todas as áreas |
+| CRM | `crm.html` | Kanban de negociações do Comercial (Sem contato → Negócio fechado, e Perdido). Cada resposta do formulário cria uma negociação |
 | Comercial | `comercial.html` | Controle de entrada de clientes (cadastro, busca, filtro por hub, importar/exportar planilha) |
 | CS | `cs.html` | Solicitações de saída e aviso prévio. Ao digitar a loja, completa cliente, hub, mensalidade, taxa, espaço e data de início a partir do Comercial. Calcula a **saída prevista** (solicitação + aviso prévio) e o **tempo de vida** (meses) |
 | Dashboard Comercial | `dashboard-comercial.html` | Novos clientes, mensalidade adicionada, ticket médio, % ICP, upsells, atraso de entrada, base ativa, gráficos por mês, hub e modelo |
@@ -14,6 +15,7 @@ Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as pl
 | Status dos Sistemas | `sistemas.html` | Aberto/fechado de cada hub, ChatPro e push de pedidos, com atualização automática, histórico e alerta sonoro/notificação |
 | Leads do formulário | `leads.html` | Respostas do formulário público, com status de atendimento, resumo e link para divulgar |
 | Formulário (público) | `formulario-midias-sociais.html` | Formulário estilo Typeform para captar interessados. Não pede login |
+| Permissões | `permissoes.html` | Perfis de acesso (Administrador, Utilizador por área, Espectador). Só administradores |
 | Configurações | `configuracoes.html` | Banco de dados, modo de verificação de cada serviço, backup |
 
 ## 1. Publicar no GitHub Pages
@@ -98,3 +100,19 @@ Quem preenche não precisa de login: as respostas são gravadas pela função `e
 
 - **Ativar:** rode novamente o [`supabase-schema.sql`](supabase-schema.sql) no SQL Editor do Supabase (o script pode ser executado mais de uma vez). Sem esse passo o formulário mostra "Não foi possível enviar".
 - **Origem dos leads:** links com `?utm_source=instagram&utm_campaign=outubro` guardam a origem em cada resposta.
+
+## Permissões e áreas
+
+O sistema é dividido em 3 áreas: **Comercial** (CRM, Clientes, Dashboard Comercial), **CS** (Solicitações de saída, Dashboard CS) e **MKT** (Leads do formulário).
+
+| Perfil | O que pode |
+|---|---|
+| Administrador | Ver e alterar tudo, inclusive Permissões e Configurações |
+| Utilizador (por área) | Ver e alterar só a própria área. Comercial e CS consultam, sem alterar, os clientes um do outro (os dashboards cruzam esses dados) |
+| Espectador | Só visualizar, de uma área ou de todas |
+
+As regras valem no próprio banco (Supabase, RLS), não só nas telas.
+
+1. Rode o [`supabase-schema.sql`](supabase-schema.sql) no SQL Editor do Supabase.
+2. Abra **Sistema → Permissões** e clique em **Tornar-me administrador**. Enquanto não houver um administrador, todos os usuários logados têm acesso total.
+3. Cadastre cada pessoa: crie o login no Supabase (Authentication → Users → Add user) e, em Permissões, informe o mesmo e-mail, o perfil e a área.

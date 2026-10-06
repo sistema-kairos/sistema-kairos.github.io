@@ -4,6 +4,7 @@ const Store = (() => {
   const LOCAL = 'gh_data_';
   const SESSION = 'gh_session';
   const OVERRIDE = 'gh_settings';
+  const PERFIL = 'gh_perfil';
 
   function readJSON(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -72,7 +73,7 @@ const Store = (() => {
     try { await authRequest('refresh_token', { refresh_token: sess.refresh_token }); }
     catch (e) { setSession(null); location.href = 'login.html'; throw e; }
   }
-  const logout = () => setSession(null);
+  const logout = () => { setSession(null); localStorage.removeItem(PERFIL); };
 
   async function api(path, opts = {}, retry = true) {
     const s = settings();
@@ -88,7 +89,11 @@ const Store = (() => {
       },
     });
     if (r.status === 401 && retry && sess) { await refresh(); return api(path, opts, false); }
-    if (!r.ok) throw new Error(`Erro ${r.status}: ${await r.text()}`);
+    if (!r.ok) {
+      const txt = await r.text();
+      if (r.status === 403 || /row-level security|42501/.test(txt)) throw new Error('Você não tem permissão para alterar estes dados.');
+      throw new Error(`Erro ${r.status}: ${txt}`);
+    }
     const text = await r.text();
     return text ? JSON.parse(text) : null;
   }
@@ -146,5 +151,50 @@ const Store = (() => {
     await api(`registros?tabela=eq.${encodeURIComponent(table)}`, { method: 'DELETE' });
   }
 
-  return { settings, setSettings, isRemote, getSession, login, logout, list, get, save, saveMany, remove, clear, uid };
+  // ---------- permissões (espelham as regras do supabase-schema.sql) ----------
+  // papel: Administrador | Utilizador | Espectador; area: Comercial | CS | MKT | Todas as áreas
+  const AREA_DA_TABELA = { comercial: 'Comercial', crm: 'Comercial', cs: 'CS', leads: 'MKT', perfis: 'admin' };
+  const areaDe = t => AREA_DA_TABELA[t] || 'geral';
+
+  // sem Supabase (modo local) ou antes de ativar as permissões, todos são administradores
+  function perfil() {
+    if (!isRemote()) return { papel: 'Administrador', local: true };
+    return readJSON(PERFIL, null) || { papel: 'Administrador', desconhecido: true };
+  }
+  async function carregarPerfil() {
+    if (!isRemote() || !getSession()) return perfil();
+    let p;
+    try { p = await api('rpc/meu_perfil', { method: 'POST', body: '{}' }); }
+    catch (e) {
+      if (!/PGRST202|meu_perfil/.test(e.message)) throw e;
+      p = { papel: 'Administrador', semPermissoes: true }; // SQL das permissões ainda não foi executado
+    }
+    localStorage.setItem(PERFIL, JSON.stringify(p || {}));
+    return p;
+  }
+  const isAdmin = () => perfil().papel === 'Administrador';
+  // a área aparece no menu para quem é dela (administradores e espectadores de todas as áreas veem tudo)
+  function veArea(area) {
+    const p = perfil();
+    if (!area || p.papel === 'Administrador') return true;
+    if (area === 'admin') return false;
+    if (p.papel === 'Espectador' && (!p.area || p.area === 'Todas as áreas')) return true;
+    return p.area === area;
+  }
+  function podeLer(t) {
+    const p = perfil(), a = areaDe(t);
+    if (p.papel === 'Administrador' || a === 'geral') return true;
+    if (a === 'admin' || !p.papel) return false;
+    if (p.papel === 'Espectador' && (!p.area || p.area === 'Todas as áreas')) return true;
+    return p.area === a || (['Comercial', 'CS'].includes(p.area) && ['comercial', 'cs'].includes(t));
+  }
+  function podeEditar(t) {
+    const p = perfil();
+    if (p.papel === 'Administrador') return true;
+    if (p.papel !== 'Utilizador') return false;
+    return t === 'status' || p.area === areaDe(t);
+  }
+
+  return { settings, setSettings, isRemote, getSession, login, logout, list, get, save, saveMany, remove, clear, uid,
+    perfil, carregarPerfil, isAdmin, veArea, podeLer, podeEditar, areaDe };
 })();

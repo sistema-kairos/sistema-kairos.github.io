@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>Permissões · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23000000'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%23CCFF00' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%23CCFF00' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="permissoes">
+  <main class="content">
+    <header class="page-head">
+      <div><h1>Permissões</h1><p>Defina o que cada pessoa pode ver e alterar no sistema</p></div>
+    </header>
+
+    <div id="aviso"></div>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lime">Perfis</span><h2>Como funcionam os perfis</h2></div>
+      <div class="kpis main">
+        <div class="card kpi"><div class="label">Administrador</div><div class="value perfil-nome">Tudo</div>
+          <div class="sub">Vê e altera todas as áreas, define permissões e configurações.</div></div>
+        <div class="card kpi"><div class="label">Utilizador · por área</div><div class="value perfil-nome">Sua área</div>
+          <div class="sub">Vê e altera só a própria área (Comercial, CS ou MKT). Comercial e CS consultam, sem alterar, os clientes um do outro.</div></div>
+        <div class="card kpi"><div class="label">Espectador</div><div class="value perfil-nome">Só leitura</div>
+          <div class="sub">Apenas visualiza os dados de uma área ou de todas. Não altera nada.</div></div>
+      </div>
+      <details class="more">
+        <summary><span><span class="label-open">Como cadastrar uma pessoa</span><span class="label-close">Ocultar</span></span></summary>
+        <div class="more-body">
+          <div class="card">
+            <ol class="passos">
+              <li>Crie o login da pessoa no Supabase: <a id="link-users" target="_blank" rel="noopener">Authentication → Users → Add user</a>
+                (e-mail + senha, com <b>Auto Confirm User</b> marcado).</li>
+              <li>Aqui, clique em <b>+ Novo registro</b>, informe o mesmo e-mail e escolha o perfil e a área.</li>
+              <li>Na próxima vez que a pessoa abrir o sistema, o menu já aparece de acordo com o perfil.</li>
+            </ol>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <div id="crud"></div>
+  </main>
+  <script src="config.js"></script>
+  <script src="store.js"></script>
+  <script src="common.js"></script>
+  <script src="schemas.js"></script>
+  <script src="crud.js"></script>
+  <script>
+    if (!window.SEM_ACESSO) {
+      const meuEmail = (Store.getSession()?.email || '').toLowerCase();
+      const ref = (Store.settings().supabaseUrl.match(/https:\/\/([a-z0-9-]+)\.supabase\.co/i) || [])[1];
+      $('#link-users').href = ref ? `https://supabase.com/dashboard/project/${ref}/auth/users` : 'https://supabase.com/dashboard';
+
+      const admins = rows => rows.filter(r => r.papel === 'Administrador');
+      const page = CrudPage({
+        el: '#crud', table: 'perfis', fields: PERFIS_FIELDS, filterKey: 'papel', sortKey: 'email',
+        idOf: r => r.email.trim().toLowerCase(),
+        validate(r, isNew, rows) {
+          r.email = (r.email || '').trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email)) return 'Informe um e-mail válido';
+          if (isNew && rows.some(x => x.id === r.email)) return 'Este e-mail já tem um perfil. Edite o registro existente.';
+          if (r.papel === 'Utilizador' && !['Comercial', 'CS', 'MKT'].includes(r.area)) return 'Escolha a área do Utilizador (Comercial, CS ou MKT)';
+          if (r.papel === 'Espectador' && !r.area) r.area = 'Todas as áreas';
+          const semAdmin = !admins(rows).length;
+          if (Store.isRemote() && semAdmin && r.papel === 'Administrador' && r.email !== meuEmail)
+            return `O primeiro administrador precisa ser você (${meuEmail}), para você não perder o acesso.`;
+          const eraAdmin = rows.find(x => x.id === r.id)?.papel === 'Administrador';
+          if (Store.isRemote() && !isNew && r.id === meuEmail && eraAdmin && r.papel !== 'Administrador')
+            return 'Você não pode remover o seu próprio acesso de administrador.';
+          return null;
+        },
+        canDelete: r => r.id === meuEmail ? 'Você não pode excluir o seu próprio perfil.' : null,
+      });
+
+      // avisos de ativação
+      const p = Store.perfil();
+      if (p.semPermissoes) {
+        $('#aviso').innerHTML = `<div class="card aviso warn"><b>As permissões ainda não estão ativas no banco.</b>
+          Rode o arquivo <code>supabase-schema.sql</code> no SQL Editor do Supabase. Até lá, todos os usuários logados têm acesso total.</div>`;
+      } else if (p.bootstrap && Store.isRemote()) {
+        $('#aviso').innerHTML = `<div class="card aviso warn"><b>Nenhum administrador definido.</b> Enquanto isso, todos os usuários logados têm acesso total.
+          Comece se definindo como administrador: <button class="btn primary small" id="virar-admin">Tornar ${esc(meuEmail)} administrador</button></div>`;
+        $('#virar-admin').addEventListener('click', async () => {
+          try {
+            await Store.save('perfis', { id: meuEmail, email: meuEmail, nome: '', papel: 'Administrador', area: null });
+            await Store.carregarPerfil();
+            toast('Você agora é administrador', 'ok');
+            location.reload();
+          } catch (e) { toast(e.message, 'error'); }
+        });
+      }
+    }
+  </script>
+</body>
+</html>

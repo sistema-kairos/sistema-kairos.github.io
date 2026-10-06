@@ -1,8 +1,11 @@
 // Página genérica de cadastro: tabela com busca/filtro/ordenação, formulário,
 // importação de planilha (colar do Excel/Sheets ou arquivo CSV) e exportação CSV.
 function CrudPage(opts) {
-  const { el, table, fields, filterKey, onChange, suggestions = {} } = opts;
+  const { el, table, fields, filterKey, onChange, suggestions = {}, validate, idOf, canDelete } = opts;
   const root = $(el);
+  if (!root) return { reload() {} };
+  // sem permissão de edição (Espectador ou outra área): só consulta
+  const readOnly = opts.readOnly ?? !Store.podeEditar(table);
   const F = Object.fromEntries(fields.map(f => [f.key, f]));
   const listFields = fields.filter(f => f.list);
   let rows = [];
@@ -16,9 +19,9 @@ function CrudPage(opts) {
         ${F[filterKey].options.map(o => `<option>${esc(o)}</option>`).join('')}</select>` : ''}
       <span class="muted small count"></span>
       <div class="spacer"></div>
-      <button class="btn ghost" data-act="import">Importar planilha</button>
+      ${readOnly ? '<span class="badge neutral">Somente visualização</span>' : '<button class="btn ghost" data-act="import">Importar planilha</button>'}
       <button class="btn ghost" data-act="export">Exportar CSV</button>
-      <button class="btn primary" data-act="new">+ Novo registro</button>
+      ${readOnly ? '' : '<button class="btn primary" data-act="new">+ Novo registro</button>'}
     </div>
     <div class="card table-card">
       <div class="table-wrap"><table class="data"><thead></thead><tbody></tbody></table></div>
@@ -29,9 +32,9 @@ function CrudPage(opts) {
   const filter = $('.filter', root);
   search.addEventListener('input', render);
   filter?.addEventListener('change', render);
-  $('[data-act=new]', root).addEventListener('click', () => openForm(null));
+  $('[data-act=new]', root)?.addEventListener('click', () => openForm(null));
   $('[data-act=export]', root).addEventListener('click', exportCSV);
-  $('[data-act=import]', root).addEventListener('click', openImport);
+  $('[data-act=import]', root)?.addEventListener('click', openImport);
 
   // ---------- tabela ----------
   function cell(f, v) {
@@ -169,12 +172,14 @@ function CrudPage(opts) {
     const isNew = !rec;
     const base = rec ? { ...rec } : Object.fromEntries(fields.filter(f => 'default' in f).map(f => [f.key, f.default]));
     const dlg = openModal({
-      title: isNew ? 'Novo registro' : `Editar: ${rec[fields[0].key] || ''}`,
+      title: isNew ? 'Novo registro' : `${readOnly ? '' : 'Editar: '}${rec[fields[0].key] || ''}`,
       wide: true,
       body: `<form class="form-grid" novalidate>${fields.map(f => fieldHTML(f, base[f.key])).join('')}</form>
         ${!isNew ? `<p class="muted small">Última alteração: ${fmt.dateTime(rec.updated_at)}</p>` : ''}`,
-      actions: [
+      actions: readOnly ? [{ label: 'Fechar', cls: 'ghost' }] : [
         ...(!isNew ? [{ label: 'Excluir', cls: 'danger left', onClick: async () => {
+          const block = canDelete?.(rec);
+          if (block) { toast(block, 'error'); return false; }
           if (!confirm('Excluir este registro definitivamente?')) return false;
           await Store.remove(table, rec.id);
           toast('Registro excluído');
@@ -184,7 +189,11 @@ function CrudPage(opts) {
         { label: 'Salvar', cls: 'primary', onClick: async d => {
           const form = $('form', d);
           if (!form.reportValidity()) return false;
-          await Store.save(table, { ...base, ...readForm(form) });
+          const out = { ...base, ...readForm(form) };
+          const erro = validate?.(out, isNew, rows);
+          if (erro) { toast(erro, 'error'); return false; }
+          if (isNew && idOf) out.id = idOf(out);
+          await Store.save(table, out);
           toast('Registro salvo', 'ok');
           await load();
         } },
@@ -197,6 +206,8 @@ function CrudPage(opts) {
     const tel = form.elements.telefone;
     if (tel) tel.addEventListener('input', () => { tel.value = maskPhone(tel.value); });
     syncForced(form, base);
+    if (!isNew) fields.filter(f => f.lockOnEdit).forEach(f => { const i = form.elements[f.key]; if (i) i.readOnly = true; });
+    if (readOnly) $$('input, select, textarea', form).forEach(i => { i.disabled = true; });
 
     form.addEventListener('change', e => {
       const key = e.target.name;

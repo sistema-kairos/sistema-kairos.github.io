@@ -385,8 +385,20 @@
           const key = 'gh_data_leads';
           const all = JSON.parse(localStorage.getItem(key) || '[]');
           const now = new Date().toISOString();
-          all.unshift({ ...dados, id: Store.uid(), status: 'Novo', recebido_em: now, updated_at: now });
+          const leadId = Store.uid(), crmId = Store.uid();
+          all.unshift({ ...dados, id: leadId, crm_id: crmId, status: 'Novo', recebido_em: now, updated_at: now });
           localStorage.setItem(key, JSON.stringify(all));
+          // mesma negociação que a função enviar_lead cria no CRM
+          const crm = JSON.parse(localStorage.getItem('gh_data_crm') || '[]');
+          crm.unshift({
+            id: crmId, titulo: dados.nome + (dados.nome_loja ? ' - ' + dados.nome_loja : ''), etapa: 'Sem contato', etapa_desde: now, criado_em: now,
+            fonte: 'Formulário - Mídias sociais' + (dados.utm_source ? ` (${dados.utm_source})` : ''), campanha: dados.utm_campaign,
+            num_pedidos: dados.pedidos_mes, situacao_delivery: dados.situacao_delivery, vende_apps: dados.vende_apps, prazo_inicio: dados.prazo_inicio,
+            anotacoes: dados.ideia, contatos: [{ nome: dados.nome, telefone: dados.telefone, email: dados.email }],
+            empresa: { nome: dados.nome_loja, num_pedidos: dados.pedidos_mes }, lead_id: leadId,
+            historico: [{ etapa: 'Sem contato', em: now, por: 'Formulário' }], updated_at: now,
+          });
+          localStorage.setItem('gh_data_crm', JSON.stringify(crm));
         }
       } catch (e) {
         console.error(e);

@@ -46,6 +46,7 @@
       btn.disabled = true;
       try {
         await Store.login(f.email.value.trim(), f.password.value);
+        await Store.carregarPerfil().catch(() => null);
         location.href = 'index.html';
       } catch (err) { toast(err.message, 'error'); }
       finally { btn.disabled = false; }

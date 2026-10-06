@@ -105,11 +105,11 @@
         <div class="svc-meta"><span>${esc(r.detalhe)}</span>
           ${r.em ? `<span class="muted">${r.manual ? 'Atualizado' : 'Verificado'} ${fmt.ago(r.em)}</span>` : ''}</div>
         <div class="svc-actions">
-          ${s.modo === 'manual' ? `
+          ${s.modo === 'manual' ? (Store.podeEditar('status') ? `
             <button class="btn small" data-set="ok" data-id="${s.id}">Marcar ${L.ok.toLowerCase()}</button>
-            <button class="btn small danger" data-set="down" data-id="${s.id}">Marcar ${L.down.toLowerCase()}</button>`
+            <button class="btn small danger" data-set="down" data-id="${s.id}">Marcar ${L.down.toLowerCase()}</button>` : '')
           : `<button class="btn small ghost" data-check="${s.id}">Verificar</button>`}
-          ${s.modo === 'heartbeat' ? `<button class="btn small ghost" data-beat="${s.id}" title="Simula um sinal do sistema externo">Sinal de teste</button>` : ''}
+          ${s.modo === 'heartbeat' && Store.isAdmin() ? `<button class="btn small ghost" data-beat="${s.id}" title="Simula um sinal do sistema externo">Sinal de teste</button>` : ''}
         </div></div>`;
     }
 

@@ -142,20 +142,35 @@ function openModal({ title, body, actions = [], wide = false }) {
 }
 
 // ---------- layout ----------
+// area: quem vê o grupo no menu (ver Store.veArea); 'admin' = só administradores
 const NAV = [
   { group: null, items: [{ page: 'inicio', href: 'index.html', label: 'Início' }] },
-  { group: 'Cadastros', items: [
-    { page: 'comercial', href: 'comercial.html', label: 'Comercial' },
-    { page: 'cs', href: 'cs.html', label: 'CS' },
+  { group: 'Comercial', area: 'Comercial', items: [
+    { page: 'crm', href: 'crm.html', label: 'CRM' },
+    { page: 'comercial', href: 'comercial.html', label: 'Clientes' },
+    { page: 'dash-comercial', href: 'dashboard-comercial.html', label: 'Dashboard Comercial' },
+  ] },
+  { group: 'CS', area: 'CS', items: [
+    { page: 'cs', href: 'cs.html', label: 'Solicitações de saída' },
+    { page: 'dash-cs', href: 'dashboard-cs.html', label: 'Dashboard CS' },
+  ] },
+  { group: 'MKT', area: 'MKT', items: [
     { page: 'leads', href: 'leads.html', label: 'Leads do formulário' },
   ] },
-  { group: 'Dashboards', items: [
-    { page: 'dash-comercial', href: 'dashboard-comercial.html', label: 'Dashboard Comercial' },
-    { page: 'dash-cs', href: 'dashboard-cs.html', label: 'Dashboard CS' },
+  { group: 'Sistema', items: [
     { page: 'sistemas', href: 'sistemas.html', label: 'Status dos Sistemas' },
+    { page: 'permissoes', href: 'permissoes.html', label: 'Permissões', area: 'admin' },
+    { page: 'config', href: 'configuracoes.html', label: 'Configurações', area: 'admin' },
   ] },
-  { group: 'Sistema', items: [{ page: 'config', href: 'configuracoes.html', label: 'Configurações' }] },
 ];
+const navArea = page => { for (const g of NAV) { const i = g.items.find(x => x.page === page); if (i) return i.area || g.area; } return null; };
+
+function perfilTexto(p) {
+  if (!p.papel) return 'Sem perfil de acesso';
+  if (p.papel === 'Utilizador') return `Utilizador · ${p.area || '—'}`;
+  if (p.papel === 'Espectador') return `Espectador · ${!p.area || p.area === 'Todas as áreas' ? 'todas as áreas' : p.area}`;
+  return 'Administrador';
+}
 
 function renderLayout() {
   const page = document.body.dataset.page;
@@ -163,17 +178,20 @@ function renderLayout() {
   if (Store.isRemote() && !Store.getSession()) { location.href = 'login.html'; return; }
 
   const sess = Store.getSession();
+  const p = Store.perfil();
+  const semPerfil = Store.isRemote() && !p.papel;
+  const groups = NAV.map(g => ({ ...g, items: g.items.filter(i => !semPerfil && Store.veArea(i.area || g.area)) })).filter(g => g.items.length);
   const side = document.createElement('aside');
   side.className = 'sidebar';
   side.innerHTML = `
     <a class="brand" href="index.html"><img class="brand-logo" src="assets/logo-wordmark-lime.png" alt="Órion"><span class="brand-sub">${esc(window.APP_CONFIG.appName)}</span></a>
-    <nav>${NAV.map(g => `
+    <nav>${groups.map(g => `
       ${g.group ? `<div class="nav-group">${g.group}</div>` : ''}
       ${g.items.map(i => `<a href="${i.href}" class="${i.page === page ? 'active' : ''}">${i.label}</a>`).join('')}
     `).join('')}</nav>
     <div class="side-foot">
       ${Store.isRemote()
-        ? `<div class="muted small">${esc(sess?.email || '')}</div><button class="btn ghost small" id="logout">Sair</button>`
+        ? `<div class="muted small">${esc(sess?.email || '')}</div><div class="badge ${p.papel === 'Espectador' ? 'neutral' : 'lilac'}">${esc(perfilTexto(p))}</div><button class="btn ghost small" id="logout">Sair</button>`
         : `<div class="badge warn" title="Configure o Supabase em Configurações para compartilhar os dados">Modo local</div>`}
     </div>`;
   document.body.prepend(side);
@@ -184,5 +202,21 @@ function renderLayout() {
   document.body.prepend(top);
   $('#menu-toggle').addEventListener('click', () => document.body.classList.toggle('menu-open'));
   $('#logout')?.addEventListener('click', () => { Store.logout(); location.href = 'login.html'; });
+
+  // página fora das áreas do usuário: mostra aviso no lugar do conteúdo
+  const main = $('main.content');
+  if (main && (semPerfil || !Store.veArea(navArea(page)))) {
+    main.innerHTML = `<div class="card no-access"><h2>Sem acesso a esta página</h2><p class="muted">${semPerfil
+      ? 'Seu usuário ainda não tem um perfil de acesso. Peça a um administrador para liberar em <b>Sistema → Permissões</b>.'
+      : 'Esta área não faz parte do seu perfil de acesso. Se precisar dela, fale com um administrador.'}</p>
+      ${semPerfil ? '' : '<a class="btn primary" href="index.html">Voltar ao início</a>'}</div>`;
+    window.SEM_ACESSO = true;
+  }
+
+  // confere o perfil no servidor; se mudou desde o último acesso, recarrega com o menu certo
+  if (Store.isRemote()) {
+    const antes = JSON.stringify(p);
+    Store.carregarPerfil().then(n => { if (JSON.stringify(n) !== antes) location.reload(); }).catch(() => {});
+  }
 }
 renderLayout();

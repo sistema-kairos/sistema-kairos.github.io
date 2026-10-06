@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>CRM · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23000000'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%23CCFF00' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%23CCFF00' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="crm">
+  <main class="content crm-page">
+    <header class="page-head">
+      <div><h1>CRM</h1><p>Negociações do comercial, do primeiro contato ao fechamento</p></div>
+      <div class="spacer"></div>
+      <button class="btn primary" id="nova">+ Nova negociação</button>
+    </header>
+    <div class="toolbar">
+      <input type="search" class="input search" id="busca" placeholder="Buscar negociação, contato, telefone…">
+      <select class="input filter" id="f-resp"><option value="">Responsável: todos</option></select>
+      <select class="input filter" id="f-fonte"><option value="">Fonte: todas</option></select>
+      <label class="check"><input type="checkbox" id="f-perdidos" checked> Mostrar perdidos</label>
+      <div class="spacer"></div>
+      <span class="muted small" id="resumo"></span>
+    </div>
+    <div class="board" id="board"></div>
+  </main>
+
+  <aside class="drawer" id="drawer" aria-hidden="true" aria-label="Detalhes da negociação"></aside>
+  <div class="drawer-backdrop" id="backdrop"></div>
+
+  <script src="config.js"></script>
+  <script src="store.js"></script>
+  <script src="common.js"></script>
+  <script src="crm.js"></script>
+</body>
+</html>
