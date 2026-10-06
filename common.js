@@ -184,7 +184,7 @@ function renderLayout() {
   const side = document.createElement('aside');
   side.className = 'sidebar';
   side.innerHTML = `
-    <a class="brand" href="index.html"><img class="brand-logo" src="assets/logo-wordmark-lime.png" alt="Órion"><span class="brand-sub">${esc(window.APP_CONFIG.appName)}</span></a>
+    <a class="brand" href="index.html"><span class="brand-logo logo-mark logo-wordmark" role="img" aria-label="Órion"></span><span class="brand-sub">${esc(window.APP_CONFIG.appName)}</span></a>
     <nav>${groups.map(g => `
       ${g.group ? `<div class="nav-group">${g.group}</div>` : ''}
       ${g.items.map(i => `<a href="${i.href}" class="${i.page === page ? 'active' : ''}">${i.label}</a>`).join('')}
@@ -198,7 +198,7 @@ function renderLayout() {
 
   const top = document.createElement('header');
   top.className = 'topbar';
-  top.innerHTML = `<button class="icon-btn" id="menu-toggle" aria-label="Menu">☰</button><img class="brand-logo" src="assets/logo-wordmark-lime.png" alt="Órion">`;
+  top.innerHTML = `<button class="icon-btn" id="menu-toggle" aria-label="Menu">☰</button><span class="brand-logo logo-mark logo-wordmark" role="img" aria-label="Órion"></span>`;
   document.body.prepend(top);
   $('#menu-toggle').addEventListener('click', () => document.body.classList.toggle('menu-open'));
   $('#logout')?.addEventListener('click', () => { Store.logout(); location.href = 'login.html'; });

@@ -6,7 +6,7 @@
   const ETAPAS = ['Sem contato', 'Contato feito', 'Identificação de interesse', 'Reunião inicial', 'Visita', 'Em negociação', 'Negócio fechado'];
   const PERDIDO = 'Perdido';
   const FECHADO = 'Negócio fechado';
-  const QUALIFICACAO = ['Quente', 'Morno', 'Frio'];
+  const QUALIFICACAO = ['Q1', 'Q3', 'Q5'];
   const PEDIDOS = ['Mais de 400 pedidos', 'De 150 a 400', 'De 60 a 150', 'Menos de 60'];
   const MOTIVOS = ['Sem resposta', 'Preço', 'Escolheu concorrente', 'Fora do perfil (ICP)', 'Desistiu do projeto', 'Momento errado', 'Outro'];
   const FONTES = ['Formulário - Mídias sociais', 'Indicação', 'Evento', 'Instagram', 'WhatsApp', 'Prospecção ativa', 'Site'];
@@ -124,9 +124,10 @@
   // ---------- quadro ----------
   function filtrados() {
     const q = norm($('#busca').value);
-    const resp = $('#f-resp').value, fonte = $('#f-fonte').value;
+    const resp = $('#f-resp').value, fonte = $('#f-fonte').value, qual = $('#f-qual').value;
     return deals.filter(d => {
       if (resp && (d.responsavel || '') !== resp) return false;
+      if (qual && (d.qualificacao || 'sem') !== qual) return false;
       if (fonte && (d.fonte || '') !== fonte) return false;
       if (!q) return true;
       const txt = [d.titulo, d.fonte, d.campanha, d.responsavel, empresaDe(d).nome, empresaDe(d).loja_ifood,
@@ -182,6 +183,18 @@
     const abertas = lista.filter(d => d.etapa !== PERDIDO && d.etapa !== FECHADO);
     const valorAberto = abertas.reduce((s, d) => s + (Number(d.valor_total) || 0), 0);
     $('#resumo').textContent = `${abertas.length} em aberto · ${fmt.money(valorAberto)} em negociação · ${lista.filter(d => d.etapa === FECHADO).length} fechadas`;
+    // métricas por qualificação das negociações em aberto
+    const porQ = q => abertas.filter(d => (d.qualificacao || 'sem') === q);
+    $('#qualif').innerHTML = [...QUALIFICACAO, 'sem'].map(q => {
+      const ds = porQ(q), v = ds.reduce((s, d) => s + (Number(d.valor_total) || 0), 0);
+      return `<button class="qcard ${$('#f-qual').value === q ? 'on' : ''}" data-q="${q}" title="Filtrar por ${q === 'sem' ? 'sem qualificação' : q}">
+        <span class="tag q-${q === 'sem' ? 'sem' : norm(q)}">${q === 'sem' ? 'Sem qualificação' : q}</span>
+        <b>${ds.length}</b><span class="muted small">${abertas.length ? Math.round(ds.length / abertas.length * 100) : 0}% · ${fmt.moneyShort(v)}</span></button>`;
+    }).join('');
+    $$('.qcard', $('#qualif')).forEach(b => b.addEventListener('click', () => {
+      $('#f-qual').value = $('#f-qual').value === b.dataset.q ? '' : b.dataset.q;
+      render();
+    }));
 
     $$('.deal', board).forEach(el => {
       el.addEventListener('click', () => abrir(el.dataset.id));
@@ -367,7 +380,7 @@
   $('#nova')?.addEventListener('click', nova);
   $('#backdrop').addEventListener('click', fechar);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && openId && !document.querySelector('dialog[open]')) fechar(); });
-  ['busca', 'f-resp', 'f-fonte', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));
+  ['busca', 'f-resp', 'f-fonte', 'f-qual', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));
   // novos leads do formulário aparecem sozinhos
   setInterval(() => { if (!openId && !dragging && !document.querySelector('dialog[open]') && !document.hidden) load(); }, 30000);
 

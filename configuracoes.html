@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#0b3c52">
   <title>Configurações · Órion</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23000000'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%23CCFF00' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%23CCFF00' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610060834">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202610061356">
 </head>
 <body data-page="config">
   <main class="content">
@@ -37,6 +37,34 @@
             <div class="affix"><span>R$</span><input class="input" type="number" min="0" step="any" id="fin-base"></div></label>
           <button class="btn primary" id="fin-save" style="align-self:flex-end">Salvar</button>
         </div>
+      </section>
+
+      <section class="card" id="email-card">
+        <h2>Avisos por e-mail · aviso prévio</h2>
+        <p>Toda vez que uma nova solicitação de saída (aviso prévio) for cadastrada no CS, um e-mail com os dados do cliente é enviado
+          automaticamente de <b>arthurrocha@orioncloudkitchens.com.br</b> para os endereços abaixo.</p>
+        <p id="email-status"></p>
+        <label class="field wide"><span>Quem recebe o aviso (um e-mail por linha, ou separados por vírgula)</span>
+          <textarea class="input" id="email-para" rows="4" placeholder="cs@orioncloudkitchens.com.br&#10;diretoria@orioncloudkitchens.com.br"></textarea></label>
+        <div class="row"><button class="btn primary" id="email-save">Salvar destinatários</button></div>
+        <details class="more" style="margin-top:6px">
+          <summary><span><span class="label-open">Conexão com o Gmail (Google Apps Script)</span><span class="label-close">Ocultar conexão</span></span></summary>
+          <div class="more-body">
+            <ol class="passos small">
+              <li>Entre em <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com</a> com a conta arthurrocha@orioncloudkitchens.com.br e crie um projeto.</li>
+              <li>Apague o conteúdo do editor e cole o código do arquivo <code>automacoes/email-aviso-previo.gs</code> do projeto.</li>
+              <li>Clique em <b>Implantar → Nova implantação</b>, escolha o tipo <b>App da Web</b>, <b>Executar como: eu</b> e <b>Quem pode acessar: qualquer pessoa</b>. Autorize o acesso ao Gmail.</li>
+              <li>Copie o <b>URL do app da Web</b> e cole abaixo.</li>
+            </ol>
+            <div class="row">
+              <label class="field" style="flex:1;min-width:260px"><span>URL do app da Web</span>
+                <input class="input" id="email-url" placeholder="https://script.google.com/macros/s/…/exec"></label>
+              <button class="btn primary" id="email-url-save" style="align-self:flex-end">Salvar conexão</button>
+              <button class="btn ghost" id="email-test" style="align-self:flex-end">Enviar e-mail de teste</button>
+            </div>
+            <p class="small muted">O endereço fica guardado numa área protegida do banco e não aparece no site.</p>
+          </div>
+        </details>
       </section>
 
       <section class="card">
@@ -70,10 +98,10 @@
       </section>
     </div>
   </main>
-  <script src="config.js?v=202610060834"></script>
-  <script src="store.js?v=202610060834"></script>
-  <script src="common.js?v=202610060834"></script>
-  <script src="monitor.js?v=202610060834"></script>
+  <script src="config.js?v=202610061356"></script>
+  <script src="store.js?v=202610061356"></script>
+  <script src="common.js?v=202610061356"></script>
+  <script src="monitor.js?v=202610061356"></script>
   <script>
     const TABLES = ['comercial', 'crm', 'cs', 'leads', 'perfis', 'config', 'status', 'heartbeat'];
     const s = Store.settings();
@@ -89,6 +117,43 @@
       location.href = Store.isRemote() ? 'login.html' : 'configuracoes.html';
     });
     $('#sb-reset').addEventListener('click', () => { Store.setSettings(null); Store.logout(); location.reload(); });
+
+    // ---------- avisos por e-mail ----------
+    const listaEmails = txt => [...new Set(txt.split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean))];
+    Store.get('config', 'notificacoes').catch(() => null).then(n => { $('#email-para').value = (n?.emails_aviso_previo || []).join('\n'); });
+    async function statusEmail() {
+      if (!Store.isRemote()) { $('#email-status').innerHTML = '<span class="badge warn">Disponível apenas com o Supabase configurado</span>'; return; }
+      try {
+        const st = await Store.rpc('status_email');
+        $('#email-status').innerHTML = st.configurado ? '<span class="badge ok">● Conexão com o Gmail ativa</span>'
+          : '<span class="badge warn">Falta conectar o Gmail (veja "Conexão com o Gmail" abaixo)</span>';
+      } catch (e) {
+        $('#email-status').innerHTML = /PGRST202|status_email/.test(e.message)
+          ? '<span class="badge warn">Rode o supabase-schema.sql no Supabase para ativar esta automação</span>'
+          : `<span class="badge down">${esc(e.message)}</span>`;
+      }
+    }
+    statusEmail();
+    $('#email-save').addEventListener('click', async () => {
+      const emails = listaEmails($('#email-para').value);
+      const ruins = emails.filter(x => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+      if (ruins.length) { toast('E-mail inválido: ' + ruins.join(', '), 'error'); return; }
+      try {
+        await Store.save('config', { id: 'notificacoes', emails_aviso_previo: emails, site_url: new URL('.', location.href).href });
+        $('#email-para').value = emails.join('\n');
+        toast(emails.length ? `${emails.length} destinatário(s) salvo(s)` : 'Avisos desativados (nenhum destinatário)', 'ok');
+      } catch (e) { toast(e.message, 'error'); }
+    });
+    $('#email-url-save').addEventListener('click', async () => {
+      try { await Store.rpc('definir_webhook_email', { url: $('#email-url').value.trim() }); $('#email-url').value = ''; toast('Conexão salva', 'ok'); statusEmail(); }
+      catch (e) { toast(e.message.replace(/^Erro \d+: /, ''), 'error'); }
+    });
+    $('#email-test').addEventListener('click', async () => {
+      try {
+        const ok = await Store.rpc('testar_email');
+        toast(ok ? 'E-mail de teste enviado. Confira a caixa de entrada em alguns segundos.' : 'Salve os destinatários e a conexão antes de testar.', ok ? 'ok' : 'error');
+      } catch (e) { toast(e.message, 'error'); }
+    });
 
     // ---------- financeiro ----------
     Store.get('config', 'financeiro').catch(() => null).then(f => {

@@ -3,34 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#f2f4f6">
   <title>Fale com a Órion</title>
   <meta name="description" content="Cozinhas e Centros de Distribuição de Delivery prontos para operar. Conte sua ideia e fale com um especialista Órion.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23000000'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%23CCFF00' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%23CCFF00' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <!-- fonte carregada sem bloquear a página (se o Google Fonts demorar, o formulário já funciona) -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
   <style>
     :root {
-      --lime: #ccff00;
-      --lime-dark: #b8e600;
-      --lilac: #c9b8e8;
-      --black: #000000;
-      --ink: #ffffff;
-      --ink-2: #b3b3b3;
-      --muted: #808080;
-      --line: rgba(255, 255, 255, .18);
-      --choice-bg: rgba(204, 255, 0, .06);
-      --choice-border: rgba(204, 255, 0, .45);
-      --error: #ff8a8a;
+      --brand: #0b3c52;          /* azul escuro puxado para o ciano */
+      --brand-2: #104b66;
+      --accent: #22b8d4;         /* ciano de destaque */
+      --accent-text: #0d7186;    /* ciano legível sobre o fundo claro */
+      --bg: #f2f4f6;             /* branco levemente acinzentado */
+      --ink: #0f1f2a;
+      --ink-2: #4a5a66;
+      --muted: #7b8a95;
+      --line: rgba(11, 60, 82, .18);
+      --choice-bg: rgba(34, 184, 212, .07);
+      --choice-border: rgba(13, 113, 134, .35);
+      --error: #b42c2c;
       --ease: cubic-bezier(.22, 1, .36, 1);
-      color-scheme: dark;
+      color-scheme: light;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; }
     body {
       font-family: 'Poppins', system-ui, -apple-system, sans-serif;
-      background: var(--black) radial-gradient(rgba(255, 255, 255, .05) 1.4px, transparent 1.4px);
+      background: var(--bg) radial-gradient(rgba(11, 60, 82, .07) 1.4px, transparent 1.4px);
       background-size: 22px 22px;
       color: var(--ink);
       -webkit-font-smoothing: antialiased;
@@ -38,10 +39,11 @@
     }
 
     /* ---------- topo ---------- */
-    .progress { position: fixed; inset: 0 0 auto 0; height: 4px; background: rgba(255, 255, 255, .08); z-index: 5; }
-    .progress i { display: block; height: 100%; width: 0; background: var(--lime); border-radius: 0 4px 4px 0; transition: width .5s var(--ease); }
+    .progress { position: fixed; inset: 0 0 auto 0; height: 4px; background: rgba(11, 60, 82, .08); z-index: 5; }
+    .progress i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 0 4px 4px 0; transition: width .5s var(--ease); }
     .logo { position: fixed; top: 22px; left: 28px; z-index: 5; }
-    .logo img { height: 30px; display: block; }
+    .logo span { display: block; height: 30px; aspect-ratio: 480 / 162; background: var(--brand);
+      -webkit-mask: url(assets/logo-wordmark-lime.png) no-repeat left center / contain; mask: url(assets/logo-wordmark-lime.png) no-repeat left center / contain; }
 
     /* ---------- palco das perguntas ---------- */
     .stage { position: relative; height: 100%; height: 100dvh; }
@@ -55,21 +57,21 @@
     .slide.hidden-pos { pointer-events: none; }
     .q { width: min(720px, 100%); }
     .q-head { display: flex; gap: 14px; align-items: flex-start; }
-    .q-num { color: var(--lime); font-weight: 700; font-size: 16px; line-height: 1; padding-top: 12px; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+    .q-num { color: var(--accent-text); font-weight: 700; font-size: 16px; line-height: 1; padding-top: 12px; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
     .q-num svg { width: 14px; height: 14px; }
     .q-body { flex: 1; min-width: 0; }
     .q-title { font-size: clamp(22px, 3.4vw, 30px); font-weight: 600; line-height: 1.3; margin: 0; letter-spacing: -.01em; }
-    .q-title .req { color: var(--lime); }
+    .q-title .req { color: var(--accent-text); }
     .q-sub { color: var(--ink-2); font-size: clamp(16px, 2.2vw, 20px); margin: 10px 0 0; line-height: 1.45; }
 
     /* campo de texto estilo typeform */
     .answer {
       width: 100%; margin-top: 30px; padding: 6px 0 10px; border: 0; border-bottom: 2px solid var(--line);
-      background: transparent; color: var(--lime); font: inherit; font-size: clamp(20px, 3vw, 28px); outline: none;
+      background: transparent; color: var(--brand); font: inherit; font-size: clamp(20px, 3vw, 28px); outline: none;
       transition: border-color .2s;
     }
-    .answer::placeholder { color: rgba(204, 255, 0, .32); }
-    .answer:focus { border-bottom-color: var(--lime); }
+    .answer::placeholder { color: rgba(11, 60, 82, .32); }
+    .answer:focus { border-bottom-color: var(--accent); }
     textarea.answer { resize: none; min-height: 52px; max-height: 40vh; line-height: 1.4; }
 
     /* opções */
@@ -79,18 +81,18 @@
       padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--choice-border); background: var(--choice-bg);
       color: var(--ink); font: inherit; font-size: 17px; transition: background .15s, border-color .15s;
     }
-    .choice:hover { background: rgba(204, 255, 0, .14); }
-    .choice:focus-visible { outline: 2px solid var(--lilac); outline-offset: 2px; }
+    .choice:hover { background: rgba(34, 184, 212, .14); }
+    .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .choice .key {
       flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px;
-      border: 1.5px solid var(--choice-border); color: var(--lime); font-size: 13px; font-weight: 700; background: var(--black);
+      border: 1.5px solid var(--choice-border); color: var(--accent-text); font-size: 13px; font-weight: 700; background: #fff;
     }
-    .choice .tick { margin-left: auto; opacity: 0; color: var(--lime); }
-    .choice.selected { border-color: var(--lime); background: rgba(204, 255, 0, .18); }
-    .choice.selected .key { background: var(--lime); color: var(--black); border-color: var(--lime); }
+    .choice .tick { margin-left: auto; opacity: 0; color: var(--accent-text); }
+    .choice.selected { border-color: var(--accent-text); background: rgba(34, 184, 212, .18); }
+    .choice.selected .key { background: var(--brand); color: #fff; border-color: var(--brand); }
     .choice.selected .tick { opacity: 1; }
     .choice.blink { animation: blink .38s steps(1) 1; }
-    @keyframes blink { 0%, 50% { background: rgba(204, 255, 0, .32); } 25%, 75% { background: rgba(204, 255, 0, .08); } }
+    @keyframes blink { 0%, 50% { background: rgba(34, 184, 212, .34); } 25%, 75% { background: rgba(34, 184, 212, .08); } }
     .choice.back { border-style: dashed; border-color: var(--line); background: transparent; color: var(--ink-2); }
     .choice.back .key { border-color: var(--line); color: var(--ink-2); }
 
@@ -98,10 +100,10 @@
     .actions { display: flex; align-items: center; gap: 14px; margin-top: 26px; flex-wrap: wrap; }
     .ok {
       display: inline-flex; align-items: center; gap: 8px; padding: 11px 24px; border-radius: 999px; border: 0; cursor: pointer;
-      background: var(--lime); color: var(--black); font: inherit; font-weight: 700; font-size: 17px;
+      background: var(--brand); color: #fff; font: inherit; font-weight: 700; font-size: 17px;
       transition: transform .14s var(--ease), filter .14s;
     }
-    .ok:hover { filter: brightness(.93); }
+    .ok:hover { background: var(--brand-2); }
     .ok:active { transform: scale(.96); }
     .ok:disabled { opacity: .6; cursor: wait; }
     .ok svg { width: 16px; height: 16px; }
@@ -116,16 +118,16 @@
 
     /* tela final */
     .done { text-align: center; }
-    .done .badge-ok { width: 72px; height: 72px; border-radius: 50%; background: var(--lime); color: var(--black); display: grid; place-items: center; margin: 0 auto 26px; }
+    .done .badge-ok { width: 72px; height: 72px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; margin: 0 auto 26px; }
     .done .badge-ok svg { width: 34px; height: 34px; }
     .done h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -.02em; margin: 0; }
     .done p { color: var(--ink-2); font-size: 18px; max-width: 520px; margin: 14px auto 0; line-height: 1.5; }
-    .done .tagline { color: var(--lime); font-weight: 600; margin-top: 30px; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; }
+    .done .tagline { color: var(--accent-text); font-weight: 600; margin-top: 30px; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; }
 
     /* navegação inferior */
     .nav { position: fixed; right: 24px; bottom: 22px; display: flex; gap: 2px; z-index: 5; }
     .nav button {
-      width: 40px; height: 36px; border: 0; background: var(--lime); color: var(--black); cursor: pointer; display: grid; place-items: center;
+      width: 40px; height: 36px; border: 0; background: var(--brand); color: #fff; cursor: pointer; display: grid; place-items: center;
     }
     .nav button:first-child { border-radius: 8px 0 0 8px; }
     .nav button:last-child { border-radius: 0 8px 8px 0; }
@@ -136,7 +138,7 @@
 
     @media (max-width: 600px) {
       .logo { top: 18px; left: 16px; }
-      .logo img { height: 24px; }
+      .logo span { height: 24px; }
       .slide { padding: 76px 16px 96px; align-items: flex-start; padding-top: 22vh; }
       .q-head { flex-direction: column; align-items: stretch; gap: 8px; }
       .q-num { padding-top: 0; }
@@ -153,7 +155,7 @@
 </head>
 <body>
   <div class="progress" aria-hidden="true"><i id="bar"></i></div>
-  <div class="logo"><img src="assets/logo-wordmark-lime.png" alt="Órion"></div>
+  <div class="logo"><span role="img" aria-label="Órion"></span></div>
   <main class="stage" id="stage" aria-live="polite"></main>
   <!-- campo isca contra robôs: pessoas não veem nem preenchem -->
   <input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -163,8 +165,8 @@
     <button id="next" aria-label="Próxima pergunta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
   </div>
 
-  <script src="config.js?v=202610060834"></script>
-  <script src="store.js?v=202610060834"></script>
+  <script src="config.js?v=202610061356"></script>
+  <script src="store.js?v=202610061356"></script>
   <script>
     const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
     const ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';

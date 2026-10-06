@@ -195,6 +195,9 @@ const Store = (() => {
     return t === 'status' || p.area === areaDe(t);
   }
 
-  return { settings, setSettings, isRemote, getSession, login, logout, list, get, save, saveMany, remove, clear, uid,
+  // chama uma função do banco (Supabase RPC)
+  const rpc = (nome, args = {}) => api(`rpc/${nome}`, { method: 'POST', body: JSON.stringify(args) });
+
+  return { settings, setSettings, isRemote, getSession, login, logout, list, get, save, saveMany, remove, clear, uid, rpc,
     perfil, carregarPerfil, isAdmin, veArea, podeLer, podeEditar, areaDe };
 })();

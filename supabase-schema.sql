@@ -177,5 +177,100 @@ $$;
 revoke all on function public.enviar_lead(jsonb) from public;
 grant execute on function public.enviar_lead(jsonb) to anon, authenticated;
 
+-- ---------------------------------------------------------------------------
+-- Aviso por e-mail: a cada nova solicitação de aviso prévio (tabela 'cs'), o banco
+-- chama o Google Apps Script da conta arthurrocha@orioncloudkitchens.com.br, que envia
+-- o e-mail para a lista definida em Configurações (config/notificacoes).
+-- O endereço do Apps Script fica no esquema "privado", que não é acessível pela API.
+-- ---------------------------------------------------------------------------
+create extension if not exists pg_net;
+create schema if not exists privado;
+revoke all on schema privado from public, anon, authenticated;
+create table if not exists privado.ajustes (chave text primary key, valor text);
+
+create or replace function public.eh_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select not existe_admin() or coalesce(perfil_atual()->>'papel', '') = 'Administrador'
+$$;
+
+create or replace function public.enviar_email_aviso(registro jsonb, teste boolean default false)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  url text;
+  cfg jsonb;
+begin
+  select valor into url from privado.ajustes where chave = 'email_webhook_url';
+  select data into cfg from registros where tabela = 'config' and id = 'notificacoes';
+  if url is null or jsonb_typeof(cfg->'emails_aviso_previo') <> 'array' or jsonb_array_length(cfg->'emails_aviso_previo') = 0 then
+    return false;
+  end if;
+  perform net.http_post(
+    url := url,
+    body := jsonb_build_object('tipo', 'aviso_previo', 'teste', teste, 'para', cfg->'emails_aviso_previo',
+                               'registro', registro, 'link', coalesce(cfg->>'site_url', '') || 'cs.html'),
+    timeout_milliseconds := 10000);
+  return true;
+end;
+$$;
+revoke all on function public.enviar_email_aviso(jsonb, boolean) from public, anon, authenticated;
+
+create or replace function public.avisar_aviso_previo()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  perform enviar_email_aviso(new.data);
+  return new;
+exception when others then
+  raise warning 'aviso por e-mail não enviado: %', sqlerrm;  -- nunca impede o cadastro
+  return new;
+end;
+$$;
+
+-- só cadastros novos disparam o e-mail (edições não)
+drop trigger if exists aviso_previo_email on public.registros;
+create trigger aviso_previo_email after insert on public.registros
+  for each row when (new.tabela = 'cs') execute function public.avisar_aviso_previo();
+
+-- usadas pela página Configurações (somente administradores)
+create or replace function public.definir_webhook_email(url text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not eh_admin() then raise exception 'apenas administradores'; end if;
+  if coalesce(trim(url), '') = '' then
+    delete from privado.ajustes where chave = 'email_webhook_url';
+  elsif trim(url) !~ '^https://script\.google\.com/' then
+    raise exception 'o endereço deve ser do Google Apps Script (https://script.google.com/...)';
+  else
+    insert into privado.ajustes values ('email_webhook_url', trim(url))
+      on conflict (chave) do update set valor = excluded.valor;
+  end if;
+end;
+$$;
+
+create or replace function public.status_email()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not eh_admin() then raise exception 'apenas administradores'; end if;
+  return jsonb_build_object('configurado', exists (select 1 from privado.ajustes where chave = 'email_webhook_url'));
+end;
+$$;
+
+create or replace function public.testar_email()
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  if not eh_admin() then raise exception 'apenas administradores'; end if;
+  return enviar_email_aviso(jsonb_build_object(
+    'loja', 'Loja de teste', 'nome_cliente', 'Cliente de teste', 'hub', 'Savassi', 'mensalidade_fixa', 1500,
+    'data_solicitacao', to_char(now(), 'YYYY-MM-DD'), 'aviso_previo_dias', 30,
+    'data_saida_prevista', to_char(now() + interval '30 days', 'YYYY-MM-DD'), 'reuniao_ap', 'Pendente',
+    'observacoes', 'Este é um e-mail de teste da automação de aviso prévio.'), true);
+end;
+$$;
+revoke all on function public.definir_webhook_email(text) from public;
+revoke all on function public.status_email() from public;
+revoke all on function public.testar_email() from public;
+grant execute on function public.definir_webhook_email(text) to authenticated;
+grant execute on function public.status_email() to authenticated;
+grant execute on function public.testar_email() to authenticated;
+
 -- faz a API do Supabase enxergar as funções novas imediatamente
 notify pgrst, 'reload schema';
