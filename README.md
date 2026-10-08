@@ -161,3 +161,7 @@ Aba aberta a toda a equipe (`sprints.html`): administradores e Utilizadores de q
 - **Copiar texto:** gera a sprint em texto, no formato do documento, para colar no ClickUp ou no WhatsApp.
 
 A aba **Status dos Sistemas** é exclusiva dos administradores.
+
+## Mudanças no banco (migrações)
+
+Cada mudança no banco fica num arquivo em [`supabase/migrations/`](supabase/migrations), aplicado pelo script `scripts/aplicar-sql.sh`. O script usa a API oficial do Supabase, com um token restrito ao banco e guardado no Keychain do Mac (nunca no repositório). O banco registra o que já foi aplicado na tabela `privado.migracoes`, para nada rodar duas vezes. O [`supabase-schema.sql`](supabase-schema.sql) continua sendo o retrato completo do banco, para criar um projeto do zero.
