@@ -58,17 +58,20 @@
     repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
     users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
     mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>',
+    door: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4h3a2 2 0 0 1 2 2v14M2 20h3M13 20h9M10 12v.01"/><path d="M13 4.6v16.2a1 1 0 0 1-1.2 1l-5-1.2A1 1 0 0 1 6 19.6V5.6a2 2 0 0 1 1.6-2l3-.6A2 2 0 0 1 13 4.6Z"/></svg>',
     task: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></svg>',
   };
 
   // ---------- tarefas ----------
   // Ficam dentro da negociação (d.tarefas), com as mesmas permissões do CRM:
-  // { id, tipo, titulo, data 'AAAA-MM-DD', hora 'HH:MM', responsavel, notas, concluida, concluida_em, concluida_por, criada_em, criada_por }
+  // { id, tipo, titulo, data 'AAAA-MM-DD', hora 'HH:MM', responsavel, notas, resultado, concluida, concluida_em, concluida_por, criada_em, criada_por }
+  // resultado (só ligações): 'Atendida' | 'Não atendida' — alimenta o quadro "Coleta de dados" das Sprints
   const TIPOS_TAREFA = [
     { tipo: 'Ligação', icon: 'phone' }, { tipo: 'Cold call', icon: 'cold' }, { tipo: 'Follow up', icon: 'repeat' },
-    { tipo: 'Visita', icon: 'pin' }, { tipo: 'Reunião', icon: 'users' }, { tipo: 'WhatsApp', icon: 'wa' },
+    { tipo: 'Visita', icon: 'pin' }, { tipo: 'Porta a porta', icon: 'door' }, { tipo: 'Reunião', icon: 'users' }, { tipo: 'WhatsApp', icon: 'wa' },
     { tipo: 'E-mail', icon: 'mail' }, { tipo: 'Outro', icon: 'task' },
   ];
+  const LIGACAO = ['Ligação', 'Cold call'];
   const iconeTarefa = t => ICON[(TIPOS_TAREFA.find(x => x.tipo === t.tipo) || TIPOS_TAREFA[TIPOS_TAREFA.length - 1]).icon];
   const tarefasDe = d => d.tarefas || [];
   const horaAgora = () => new Date().toTimeString().slice(0, 5);
@@ -336,7 +339,7 @@
       <button class="tarefa-corpo" type="button" ${canEdit ? '' : 'disabled'}>
         <span class="tarefa-ico">${iconeTarefa(t)}</span>
         <span class="tarefa-txt"><span class="tarefa-titulo">${esc(tituloTarefa(t))}</span>
-          <span class="tarefa-meta">${t.titulo && t.titulo !== t.tipo ? `${esc(t.tipo)} · ` : ''}${t.concluida
+          <span class="tarefa-meta">${t.titulo && t.titulo !== t.tipo ? `${esc(t.tipo)} · ` : ''}${t.resultado ? `${esc(t.resultado)} · ` : ''}${t.concluida
             ? `Concluída ${esc(fmt.dateTime(t.concluida_em))}${t.concluida_por ? ' por ' + esc(t.concluida_por) : ''}`
             : `<span class="tarefa-quando">${st === 'atrasada' ? 'Atrasada · ' : ''}${esc(quandoTexto(t))}</span>`}${t.responsavel ? ` · ${esc(t.responsavel)}` : ''}</span>
           ${t.notas ? `<span class="tarefa-notas">${esc(t.notas)}</span>` : ''}</span>
@@ -364,6 +367,8 @@
         <label class="field wide"><span>Título</span><input class="input" name="titulo" value="${esc(base.titulo || '')}" placeholder="Ex.: Ligar para apresentar a proposta (opcional)"></label>
         <label class="field"><span>Data *</span><input class="input" type="date" name="data" value="${esc(base.data || '')}" required></label>
         <label class="field"><span>Hora</span><input class="input" type="time" name="hora" value="${esc(base.hora || '')}"></label>
+        <label class="field wide so-ligacao ${LIGACAO.includes(base.tipo) ? '' : 'hidden'}"><span>Resultado da ligação</span>
+          <select class="input" name="resultado"><option value="">Ainda não ligou</option>${['Atendida', 'Não atendida'].map(o => `<option ${o === base.resultado ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
         <label class="field wide"><span>Responsável</span><input class="input" name="responsavel" value="${esc(base.responsavel || '')}" list="dl-resp-tarefa">
           <datalist id="dl-resp-tarefa">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist></label>
         <label class="field wide"><span>Anotações</span><textarea class="input" name="notas" rows="3" placeholder="O que falar, endereço da visita, combinados…">${esc(base.notas || '')}</textarea></label>
@@ -382,7 +387,8 @@
           const f = $('form', dl);
           if (!f.reportValidity()) return false;
           const v = k => f.elements[k].value.trim() || null;
-          const dados = { tipo: f.elements.tipo.value, titulo: v('titulo'), data: v('data'), hora: v('hora'), responsavel: v('responsavel'), notas: v('notas') };
+          const dados = { tipo: f.elements.tipo.value, titulo: v('titulo'), data: v('data'), hora: v('hora'), responsavel: v('responsavel'), notas: v('notas'),
+            resultado: LIGACAO.includes(f.elements.tipo.value) ? v('resultado') : null };
           if (nova) d.tarefas = [...tarefasDe(d), { id: Store.uid(), ...dados, concluida: false, criada_em: now(), criada_por: eu }];
           else Object.assign(tarefasDe(d).find(x => x.id === t.id), dados);
           await persist(d); renderDrawer(); render();
@@ -392,12 +398,30 @@
     });
     $$('.tipo-tarefa input', dlg).forEach(r => r.addEventListener('change', () => {
       $$('.tipo-tarefa .chip', dlg).forEach(c => c.classList.toggle('on', c.contains(r) ? r.checked : false));
+      $('.so-ligacao', dlg).classList.toggle('hidden', !LIGACAO.includes(r.value));
     }));
     $$('[data-dias]', dlg).forEach(b => b.addEventListener('click', () => { $('[name=data]', dlg).value = dates.addDays(dates.today(), +b.dataset.dias); }));
     if (nova) setTimeout(() => $('[name=titulo]', dlg)?.focus(), 50);
   }
 
+  function perguntarResultado(t) {
+    return new Promise(resolve => {
+      let r = null;
+      const dlg = openModal({
+        title: `${t.tipo} concluída`,
+        body: `<p>A ligação <b>${esc(tituloTarefa(t))}</b> foi atendida?</p>`,
+        actions: [
+          { label: 'Pular', cls: 'ghost' },
+          { label: 'Não atendida', cls: '', onClick: () => { r = 'Não atendida'; } },
+          { label: 'Atendida', cls: 'primary', onClick: () => { r = 'Atendida'; } },
+        ],
+      });
+      dlg.addEventListener('close', () => resolve(r));
+    });
+  }
+
   async function concluirTarefa(d, t, feita) {
+    if (feita && LIGACAO.includes(t.tipo) && !t.resultado) t.resultado = await perguntarResultado(t);
     Object.assign(t, feita ? { concluida: true, concluida_em: now(), concluida_por: eu } : { concluida: false, concluida_em: null, concluida_por: null });
     await persist(d);
     renderDrawer(); render();
@@ -441,7 +465,8 @@
         ${secao(`Tarefas${pendentes(d).length ? ` <span class="sec-count">${pendentes(d).length}</span>` : ''}`, tarefasHTML(d))}
         ${secao('Negociação', `
           ${kv('Nome', 'titulo', d)}
-          ${kv('Qualificação', 'qualificacao', d, 'select', { options: QUALIFICACAO })}
+          ${kv('Qualificação (SQL)', 'qualificacao', d, 'select', { options: QUALIFICACAO })}
+          ${kv('Qualificação MKT (MQL)', 'qualificacao_mkt', d, 'select', { options: QUALIFICACAO })}
           ${kv('Previsão de fechamento', 'previsao_fechamento', d, 'date')}
           ${kv('Fonte', 'fonte', d, 'text', { list: 'dl-fontes' })}
           ${kv('Campanha', 'campanha', d)}
@@ -559,7 +584,8 @@
     { key: 'fonte', label: 'Fonte', aliases: ['origem', 'canal', 'fonte do lead'] },
     { key: 'campanha', label: 'Campanha', aliases: ['utm campaign', 'utm_campaign'] },
     { key: 'valor_total', label: 'Valor', aliases: ['valor total', 'valor da negociacao', 'mensalidade', 'valor estimado'], type: 'money' },
-    { key: 'qualificacao', label: 'Qualificação', aliases: [] },
+    { key: 'qualificacao', label: 'Qualificação', aliases: ['qualificacao sql', 'sql'] },
+    { key: 'qualificacao_mkt', label: 'Qualificação MKT', aliases: ['qualificacao mql', 'mql'] },
     { key: 'previsao_fechamento', label: 'Previsão de fechamento', aliases: ['previsao'], type: 'date' },
     { key: 'responsavel', label: 'Responsável', aliases: ['vendedor', 'dono', 'proprietario', 'owner', 'closer', 'sdr'] },
     { key: 'criado_em', label: 'Criada em', aliases: ['criado em', 'data de criacao', 'data de entrada', 'data', 'data do lead'], type: 'date' },
@@ -627,7 +653,7 @@
         id: Store.uid(), titulo, etapa: et.etapa, etapa_desde: criado, criado_em: criado,
         perdido_etapa: et.perdido_etapa, motivo_perda: et.etapa === PERDIDO ? v.motivo_perda : null,
         fonte: v.fonte, campanha: v.campanha, valor_total: parse.num(v.valor_total),
-        qualificacao: QUALIF(v.qualificacao), previsao_fechamento: parse.date(v.previsao_fechamento),
+        qualificacao: QUALIF(v.qualificacao), qualificacao_mkt: QUALIF(v.qualificacao_mkt), previsao_fechamento: parse.date(v.previsao_fechamento),
         responsavel: v.responsavel || eu, instagram: v.instagram, num_pedidos: v.num_pedidos,
         anotacoes: [v.anotacoes, et.desconhecida ? `Etapa na planilha: ${et.desconhecida}` : null].filter(Boolean).join('\n') || null,
         importado_em: now(),
@@ -686,8 +712,8 @@
     $('#modelo', dlg).addEventListener('click', e => {
       e.preventDefault();
       baixarCSV('modelo-importacao-crm.csv', [COLUNAS.map(c => c.label),
-        ['Ana - Burger da Ana', 'Contato feito', '', '', 'Ana Souza', '(31) 99999-0000', 'ana@email.com', 'Burger da Ana', 'Savassi', 'Hambúrguer', 'Instagram', '', '2500', 'Q3', '', eu, fmt.date(dates.today()), '@burgerdaana', 'De 150 a 400', ''],
-        ['João - Sushi Top', 'Perdido [Identificação de interesse]', '', 'Preço', 'João Lima', '(31) 98888-0000', '', 'Sushi Top', 'Pampulha', 'Japonesa', 'Indicação', '', '3000', 'Q1', '', eu, fmt.date(dates.today()), '', '', '']]);
+        ['Ana - Burger da Ana', 'Contato feito', '', '', 'Ana Souza', '(31) 99999-0000', 'ana@email.com', 'Burger da Ana', 'Savassi', 'Hambúrguer', 'Instagram', '', '2500', 'Q3', 'Q1', '', eu, fmt.date(dates.today()), '@burgerdaana', 'De 150 a 400', ''],
+        ['João - Sushi Top', 'Perdido [Identificação de interesse]', '', 'Preço', 'João Lima', '(31) 98888-0000', '', 'Sushi Top', 'Pampulha', 'Japonesa', 'Indicação', '', '3000', 'Q1', 'Q1', '', eu, fmt.date(dates.today()), '', '', '']]);
     });
   }
 

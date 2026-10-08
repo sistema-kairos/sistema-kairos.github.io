@@ -144,7 +144,10 @@ function openModal({ title, body, actions = [], wide = false }) {
 // ---------- layout ----------
 // area: quem vê o grupo no menu (ver Store.veArea); 'admin' = só administradores
 const NAV = [
-  { group: null, items: [{ page: 'inicio', href: 'index.html', label: 'Início' }] },
+  { group: null, items: [
+    { page: 'inicio', href: 'index.html', label: 'Início' },
+    { page: 'sprints', href: 'sprints.html', label: 'Sprints' },
+  ] },
   { group: 'Comercial', area: 'Comercial', items: [
     { page: 'crm', href: 'crm.html', label: 'CRM' },
     { page: 'comercial', href: 'comercial.html', label: 'Clientes' },
@@ -161,7 +164,7 @@ const NAV = [
     { page: 'ind-mkt', href: 'indicadores.html?area=mkt', label: 'Indicadores' },
   ] },
   { group: 'Sistema', items: [
-    { page: 'sistemas', href: 'sistemas.html', label: 'Status dos Sistemas' },
+    { page: 'sistemas', href: 'sistemas.html', label: 'Status dos Sistemas', area: 'admin' },
     { page: 'permissoes', href: 'permissoes.html', label: 'Permissões', area: 'admin' },
     { page: 'config', href: 'configuracoes.html', label: 'Configurações', area: 'admin' },
   ] },

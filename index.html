@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Início · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610081430">
+  <link rel="stylesheet" href="style.css?v=202610091200">
 </head>
 <body data-page="inicio">
   <main class="content">
@@ -15,10 +15,10 @@
     </header>
     <section class="home-grid" id="home"></section>
   </main>
-  <script src="config.js?v=202610081430"></script>
-  <script src="store.js?v=202610081430"></script>
-  <script src="common.js?v=202610081430"></script>
-  <script src="monitor.js?v=202610081430"></script>
+  <script src="config.js?v=202610091200"></script>
+  <script src="store.js?v=202610091200"></script>
+  <script src="common.js?v=202610091200"></script>
+  <script src="monitor.js?v=202610091200"></script>
   <script>
     (async () => {
       if (window.SEM_ACESSO) return;
@@ -26,7 +26,9 @@
       let comercial = [], cs = [], crm = [], leads = [], status = [], beats = [], cfg;
       try {
         [comercial, cs, crm, leads, status, beats, cfg] = await Promise.all([
-          ler('comercial'), ler('cs'), ler('crm'), ler('leads'), Store.list('status'), Store.list('heartbeat'), Monitor.loadConfig()]);
+          ler('comercial'), ler('cs'), ler('crm'), ler('leads'),
+          // Status dos Sistemas é só para administradores
+          Store.isAdmin() ? Store.list('status') : [], Store.isAdmin() ? Store.list('heartbeat') : [], Store.isAdmin() ? Monitor.loadConfig() : Monitor.DEFAULT]);
       } catch (e) { toast('Erro ao carregar dados: ' + e.message, 'error'); cfg = Monitor.DEFAULT; }
 
       const today = dates.today(), mes = today.slice(0, 7);
@@ -38,20 +40,21 @@
 
       const byId = arr => Object.fromEntries(arr.map(x => [x.id, x]));
       const M = byId(status), B = byId(beats);
-      const res = await Promise.all(cfg.servicos.map(s => Monitor.check(s, M[s.id], B[s.id])));
+      const res = Store.isAdmin() ? await Promise.all(cfg.servicos.map(s => Monitor.check(s, M[s.id], B[s.id]))) : [];
       const down = cfg.servicos.filter((s, i) => res[i].status === 'down');
 
       const abertas = crm.filter(d => d.etapa !== 'Perdido' && d.etapa !== 'Negócio fechado');
       const semContato = crm.filter(d => (d.etapa || 'Sem contato') === 'Sem contato').length;
       const leadsNovos = leads.filter(l => (l.status || 'Novo') === 'Novo').length;
       const cards = [
+        { href: 'sprints.html', title: 'Sprints', value: 'Sprint da semana', sub: 'KRs, tarefas, retrospectiva e coleta de dados' },
         { area: 'Comercial', href: 'crm.html', title: 'CRM', value: abertas.length + ' negociações abertas', sub: `${semContato} aguardando primeiro contato` },
         { area: 'Comercial', href: 'comercial.html', title: 'Comercial', value: fmt.num(ativos.length, 0) + ' clientes ativos', sub: `${novosMes} fechamentos neste mês` },
         { area: 'CS', href: 'cs.html', title: 'CS', value: prox30 + ' saídas em 30 dias', sub: `${pendAP} reuniões de A.P pendentes` },
         { area: 'Comercial', href: 'dashboard-comercial.html', title: 'Dashboard Comercial', value: fmt.moneyShort(somaMensalidades(ativos)), sub: 'em mensalidades fixas ativas/mês' },
         { area: 'CS', href: 'dashboard-cs.html', title: 'Dashboard CS', value: cs.length + ' solicitações', sub: 'de saída registradas no total' },
         { area: 'MKT', href: 'leads.html', title: 'Leads do formulário', value: leads.length + ' leads', sub: `${leadsNovos} aguardando contato` },
-        { href: 'sistemas.html', title: 'Status dos Sistemas',
+        { area: 'admin', href: 'sistemas.html', title: 'Status dos Sistemas',
           value: down.length ? `<span class="badge down">✕ ${down.length} com problema</span>` : '<span class="badge ok">● Tudo operando</span>',
           sub: down.length ? down.map(s => esc(s.nome)).join(', ') : `${cfg.servicos.length} serviços monitorados` },
       ];

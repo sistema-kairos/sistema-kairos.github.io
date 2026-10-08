@@ -143,3 +143,21 @@ Cada negociação tem a seção **Tarefas**, no topo do painel. Os botões criam
 - Marque a caixinha para concluir. Se a negociação ficar sem tarefas pendentes, o sistema sugere agendar a próxima.
 - O card no quadro mostra a próxima tarefa: em amarelo se for hoje, em vermelho se estiver atrasada.
 - No topo do CRM aparecem os contadores de tarefas atrasadas e para hoje (clique para filtrar), e o filtro **Tarefas** separa as negociações com tarefa atrasada, para hoje ou sem tarefa agendada.
+
+## Sprints
+
+Aba aberta a toda a equipe (`sprints.html`): administradores e Utilizadores de qualquer área editam, e Espectadores só leem. Cada semana tem a sua sprint, no mesmo formato do documento que a equipe já usava:
+
+- **Retrospectiva:** mostra o resultado da sprint anterior (pontos e KRs concluídos) e tem campos para "O que funcionou", "O que pode melhorar" e "Ações para esta semana".
+- **KRs:** cada KR tem área, nome, 🏆 prioridade, 💪 esforço (Fibonacci: 1, 2, 3, 5, 8, 13, 21), 👤 responsável, 📅 prazo e ▶️ tarefas. O total "💪 X/Y" soma o esforço dos KRs concluídos sobre o total.
+- **Nova sprint:** pode trazer os KRs não concluídos da semana anterior, só com as tarefas pendentes.
+- **Coleta de dados:** calculada automaticamente a partir do CRM na semana da sprint.
+  - Leads por prospecção ativa e passivos, pela fonte da negociação.
+  - Ligações, cold calls (realizadas e atendidas), porta a porta e visitas/reuniões, pelas tarefas concluídas no CRM.
+  - Contratos fechados e valor por hub.
+  - Q1/Q3/Q5 de MQL (campo "Qualificação MKT") e de SQL (campo "Qualificação").
+
+  Qualquer número pode ser corrigido à mão.
+- **Copiar texto:** gera a sprint em texto, no formato do documento, para colar no ClickUp ou no WhatsApp.
+
+A aba **Status dos Sistemas** é exclusiva dos administradores.

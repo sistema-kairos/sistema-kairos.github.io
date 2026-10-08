@@ -193,7 +193,7 @@ const Store = (() => {
     const p = perfil();
     if (p.papel === 'Administrador') return true;
     if (p.papel !== 'Utilizador') return false;
-    return t === 'status' || p.area === areaDe(t);
+    return t === 'sprints' || p.area === areaDe(t); // Sprints: toda a equipe edita
   }
 
   // chama uma função do banco (Supabase RPC)

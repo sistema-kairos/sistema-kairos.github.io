@@ -1,6 +1,6 @@
 -- Execute este script no Supabase: Dashboard > SQL Editor > New query > cole e rode.
 
--- Tabela única com os registros de todas as abas (comercial, crm, cs, leads, ind_*, perfis, config, status, heartbeat).
+-- Tabela única com os registros de todas as abas (comercial, crm, cs, leads, ind_*, sprints, perfis, config, status, heartbeat).
 create table if not exists public.registros (
   tabela     text        not null,
   id         text        not null,
@@ -68,7 +68,8 @@ begin
   if p is null then return false; end if;
   if p->>'papel' = 'Administrador' then return true; end if;
   if p->>'papel' <> 'Utilizador' then return false; end if;
-  return t = 'status' or p->>'area' = area_da_tabela(t);
+  -- Sprints: toda a equipe (Utilizadores de qualquer área) edita; Status dos Sistemas: só administradores
+  return t = 'sprints' or p->>'area' = area_da_tabela(t);
 end;
 $$;
 
