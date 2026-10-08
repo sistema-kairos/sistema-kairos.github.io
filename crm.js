@@ -11,6 +11,13 @@
   const MOTIVOS = ['Sem resposta', 'Preço', 'Escolheu concorrente', 'Fora do perfil (ICP)', 'Desistiu do projeto', 'Momento errado', 'Outro'];
   const FONTES = ['Formulário - Mídias sociais', 'Indicação', 'Evento', 'Instagram', 'WhatsApp', 'Prospecção ativa', 'Site'];
   const HUBS_CRM = window.APP_CONFIG.hubs || [];
+  // Perdidos: a negociação fica com etapa 'Perdido' e perdido_etapa = etapa em que foi perdida.
+  // No quadro, cada etapa tem sua coluna de perda no fim do funil: "Perdido [Contato feito]", etc.
+  const ETAPAS_PERDA = ETAPAS.filter(e => e !== FECHADO);
+  const perdidoLabel = e => `Perdido [${e || 'Sem etapa'}]`;
+  const etapaDoLabel = l => (String(l).match(/^Perdido \[(.*)\]$/) || [])[1];
+  const colunaDe = d => d.etapa === PERDIDO ? perdidoLabel(d.perdido_etapa) : (d.etapa || ETAPAS[0]);
+  const etapaHist = h => h.etapa === PERDIDO ? perdidoLabel(h.perdido_em) : h.etapa;
 
   const canEdit = Store.podeEditar('crm');
   const eu = (() => { const p = Store.perfil(); return p.nome || (Store.getSession()?.email || '').split('@')[0] || 'Equipe'; })();
@@ -20,7 +27,10 @@
   let saveTimer = null;
   const board = $('#board'), drawer = $('#drawer');
 
-  if (!canEdit) $('#nova').replaceWith(Object.assign(document.createElement('span'), { className: 'badge neutral', textContent: 'Somente visualização' }));
+  if (!canEdit) {
+    $('#nova').replaceWith(Object.assign(document.createElement('span'), { className: 'badge neutral', textContent: 'Somente visualização' }));
+    $('#importar')?.remove();
+  }
 
   // ---------- utilidades ----------
   const get = (o, path) => path.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
@@ -71,12 +81,13 @@
     }, 500);
   }
 
-  async function mover(d, etapa) {
-    if (!canEdit || d.etapa === etapa) return;
+  async function mover(d, etapa, etapaPerda = null) {
+    if (!canEdit) return;
+    if (d.etapa === etapa && (etapa !== PERDIDO || (etapaPerda && etapaPerda === d.perdido_etapa))) return;
     if (etapa === PERDIDO) {
-      const perda = await pedirMotivo(d);
+      const perda = await pedirMotivo(d, etapaPerda);
       if (!perda) return;
-      d.perdido_etapa = d.etapa;
+      d.perdido_etapa = perda.etapa;
       d.motivo_perda = perda.motivo;
       d.motivo_detalhe = perda.detalhe || null;
     } else if (d.etapa === PERDIDO) {
@@ -84,26 +95,30 @@
     }
     d.etapa = etapa;
     d.etapa_desde = now();
-    (d.historico = d.historico || []).push({ etapa, em: now(), por: eu, ...(etapa === PERDIDO ? { motivo: d.motivo_perda } : {}) });
+    (d.historico = d.historico || []).push({ etapa, em: now(), por: eu, ...(etapa === PERDIDO ? { perdido_em: d.perdido_etapa, motivo: d.motivo_perda } : {}) });
     await persist(d);
     render();
     if (openId === d.id) renderDrawer();
-    toast(etapa === PERDIDO ? 'Negociação marcada como perdida' : `Movida para ${etapa}`, 'ok');
+    toast(etapa === PERDIDO ? `Movida para ${perdidoLabel(d.perdido_etapa)}` : `Movida para ${etapa}`, 'ok');
   }
 
-  function pedirMotivo(d) {
+  function pedirMotivo(d, etapaPerda) {
+    const atual = d.etapa === PERDIDO ? d.perdido_etapa : d.etapa;
+    const sugerida = etapaPerda || (ETAPAS_PERDA.includes(atual) ? atual : ETAPAS_PERDA[ETAPAS_PERDA.length - 1]);
     return new Promise(resolve => {
       let result = null;
       const dlg = openModal({
         title: 'Marcar como perdido',
-        body: `<p>Perdido na etapa <b>${esc(d.etapa)}</b>. Qual foi o motivo?</p>
+        body: `<p>Em qual etapa a negociação foi perdida e qual foi o motivo?</p>
           <div class="form-grid">
-            <label class="field wide"><span>Motivo *</span><select class="input" name="motivo">${MOTIVOS.map(m => `<option>${esc(m)}</option>`).join('')}</select></label>
+            <label class="field wide"><span>Perdido em *</span><select class="input" name="etapa">${ETAPAS_PERDA.map(e =>
+              `<option value="${esc(e)}" ${e === sugerida ? 'selected' : ''}>${esc(perdidoLabel(e))}</option>`).join('')}</select></label>
+            <label class="field wide"><span>Motivo *</span><select class="input" name="motivo">${MOTIVOS.map(m => `<option ${m === d.motivo_perda ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
             <label class="field wide"><span>Detalhes</span><textarea class="input" rows="3" name="detalhe" placeholder="Opcional"></textarea></label>
           </div>`,
         actions: [
           { label: 'Cancelar', cls: 'ghost' },
-          { label: 'Marcar como perdido', cls: 'primary', onClick: dl => { result = { motivo: $('[name=motivo]', dl).value, detalhe: $('[name=detalhe]', dl).value.trim() }; } },
+          { label: 'Marcar como perdido', cls: 'primary', onClick: dl => { result = { etapa: $('[name=etapa]', dl).value, motivo: $('[name=motivo]', dl).value, detalhe: $('[name=detalhe]', dl).value.trim() }; } },
         ],
       });
       dlg.addEventListener('close', () => resolve(result));
@@ -151,7 +166,7 @@
     const dias = diasDesde(d.etapa_desde);
     const q = d.qualificacao ? `<span class="tag q-${norm(d.qualificacao)}">${esc(d.qualificacao)}</span>` : '';
     const fonte = d.fonte ? `<span class="tag">${esc(d.fonte.replace('Formulário - ', 'Form. '))}</span>` : '';
-    const perda = d.etapa === PERDIDO ? `<div class="deal-lost">Perdido em <b>${esc(d.perdido_etapa || '—')}</b>${d.motivo_perda ? ' · ' + esc(d.motivo_perda) : ''}</div>` : '';
+    const perda = d.etapa === PERDIDO && d.motivo_perda ? `<div class="deal-lost">${esc(d.motivo_perda)}</div>` : '';
     return `<article class="deal" data-id="${esc(d.id)}" ${canEdit ? 'draggable="true"' : ''} tabindex="0">
       <div class="deal-title">${esc(d.titulo || 'Sem nome')}</div>
       ${emp.nome || emp.hub ? `<div class="deal-sub">${esc([emp.nome, emp.hub].filter(Boolean).join(' · '))}</div>` : ''}
@@ -167,12 +182,15 @@
 
   function render() {
     const lista = filtrados();
-    const cols = [...ETAPAS, ...($('#f-perdidos').checked ? [PERDIDO] : [])];
+    // colunas de perda: uma por etapa do funil (+ perdas antigas sem etapa registrada, se houver)
+    const perdas = [...ETAPAS_PERDA.map(perdidoLabel),
+      ...new Set(lista.filter(d => d.etapa === PERDIDO && !ETAPAS_PERDA.includes(d.perdido_etapa)).map(colunaDe))];
+    const cols = [...ETAPAS, ...($('#f-perdidos').checked ? perdas : [])];
     const ordem = (a, b) => (b.etapa_desde || '').localeCompare(a.etapa_desde || '');
-    board.innerHTML = cols.map(etapa => {
-      const ds = lista.filter(d => (d.etapa || ETAPAS[0]) === etapa).sort(ordem);
+    board.innerHTML = cols.map((etapa, i) => {
+      const ds = lista.filter(d => colunaDe(d) === etapa).sort(ordem);
       const total = ds.reduce((s, d) => s + (Number(d.valor_total) || 0), 0);
-      const cls = etapa === PERDIDO ? 'lost' : etapa === FECHADO ? 'won' : '';
+      const cls = etapaDoLabel(etapa) !== undefined ? `lost${i === ETAPAS.length ? ' first-lost' : ''}` : etapa === FECHADO ? 'won' : '';
       return `<section class="col ${cls}" data-etapa="${esc(etapa)}">
         <header class="col-head"><span class="col-name">${esc(etapa)}</span><span class="col-count">${ds.length}</span>
           ${total ? `<span class="col-total">${fmt.moneyShort(total)}</span>` : ''}</header>
@@ -210,7 +228,10 @@
         e.preventDefault();
         col.classList.remove('over');
         const d = deals.find(x => x.id === e.dataTransfer.getData('text/plain'));
-        if (d) mover(d, col.dataset.etapa);
+        if (!d) return;
+        const perda = etapaDoLabel(col.dataset.etapa);
+        if (perda !== undefined) mover(d, PERDIDO, ETAPAS_PERDA.includes(perda) ? perda : null);
+        else mover(d, col.dataset.etapa);
       });
     });
   }
@@ -271,12 +292,14 @@
       <div class="drawer-head">
         <div class="drawer-top">
           <select class="v etapa-select" id="etapa" ${dis} aria-label="Etapa">
-            ${[...ETAPAS, PERDIDO].map(e => `<option ${e === d.etapa ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>
+            <optgroup label="Funil">${ETAPAS.map(e => `<option ${e === colunaDe(d) ? 'selected' : ''}>${esc(e)}</option>`).join('')}</optgroup>
+            <optgroup label="Perdidos">${ETAPAS_PERDA.map(perdidoLabel).map(e => `<option ${e === colunaDe(d) ? 'selected' : ''}>${esc(e)}</option>`).join('')}
+              ${d.etapa === PERDIDO && !ETAPAS_PERDA.includes(d.perdido_etapa) ? `<option selected>${esc(colunaDe(d))}</option>` : ''}</optgroup></select>
           <span class="save-state muted small"></span>
           <button class="icon-btn" id="fechar" aria-label="Fechar">×</button>
         </div>
         <input class="v drawer-title" data-path="titulo" value="${esc(d.titulo || '')}" placeholder="Nome da negociação" ${dis}>
-        ${d.etapa === PERDIDO ? `<div class="deal-lost big">Perdido em <b>${esc(d.perdido_etapa || '—')}</b> · ${esc(d.motivo_perda || '')}${d.motivo_detalhe ? ` — ${esc(d.motivo_detalhe)}` : ''}</div>` : ''}
+        ${d.etapa === PERDIDO ? `<div class="deal-lost big"><b>${esc(perdidoLabel(d.perdido_etapa))}</b>${d.motivo_perda ? ' · ' + esc(d.motivo_perda) : ''}${d.motivo_detalhe ? ` — ${esc(d.motivo_detalhe)}` : ''}</div>` : ''}
         ${canEdit ? `<div class="drawer-actions">
           ${proxima ? `<button class="btn primary small" id="avancar">Avançar para ${esc(proxima)} ›</button>` : ''}
           ${d.etapa === PERDIDO ? `<button class="btn small" id="reabrir">Reabrir em ${esc(d.perdido_etapa || ETAPAS[0])}</button>` : `<button class="btn small danger" id="perder">Marcar como perdido</button>`}
@@ -315,7 +338,7 @@
           <datalist id="dl-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist>`)}
         ${secao('Anotações', `<textarea class="v notes" data-path="anotacoes" rows="5" placeholder="Ideia de negócio, próximos passos, combinados…" ${dis}>${esc(d.anotacoes || '')}</textarea>`)}
         ${secao('Histórico', `<ol class="hist">${(d.historico || []).slice().reverse().map(h => `
-          <li><b>${esc(h.etapa)}</b>${h.motivo ? ` · ${esc(h.motivo)}` : ''}<span class="muted small">${esc(fmt.dateTime(h.em))}${h.por ? ' · ' + esc(h.por) : ''}</span></li>`).join('') || '<li class="muted">Sem movimentações</li>'}</ol>`, false)}
+          <li><b>${esc(etapaHist(h))}</b>${h.motivo ? ` · ${esc(h.motivo)}` : ''}<span class="muted small">${esc(fmt.dateTime(h.em))}${h.por ? ' · ' + esc(h.por) : ''}</span></li>`).join('') || '<li class="muted">Sem movimentações</li>'}</ol>`, false)}
         ${canEdit ? '<button class="btn ghost small danger excluir" id="excluir">Excluir negociação</button>' : ''}
       </div>`;
     bindDrawer(d);
@@ -323,10 +346,14 @@
 
   function bindDrawer(d) {
     $('#fechar', drawer).addEventListener('click', fechar);
-    $('#etapa', drawer)?.addEventListener('change', e => { const v = e.target.value; e.target.value = d.etapa; mover(d, v); });
+    $('#etapa', drawer)?.addEventListener('change', e => {
+      const v = e.target.value, perda = etapaDoLabel(v);
+      e.target.value = colunaDe(d);
+      if (perda !== undefined) mover(d, PERDIDO, ETAPAS_PERDA.includes(perda) ? perda : null); else mover(d, v);
+    });
     $('#avancar', drawer)?.addEventListener('click', () => mover(d, ETAPAS[ETAPAS.indexOf(d.etapa) + 1]));
     $('#perder', drawer)?.addEventListener('click', () => mover(d, PERDIDO));
-    $('#reabrir', drawer)?.addEventListener('click', () => mover(d, d.perdido_etapa && d.perdido_etapa !== PERDIDO ? d.perdido_etapa : ETAPAS[0]));
+    $('#reabrir', drawer)?.addEventListener('click', () => mover(d, ETAPAS.includes(d.perdido_etapa) ? d.perdido_etapa : ETAPAS[0]));
     $('#add-contato', drawer)?.addEventListener('click', () => { d.contatos = [...contatosDe(d), {}]; scheduleSave(d); renderDrawer(); });
     $$('.rm-contato', drawer).forEach(b => b.addEventListener('click', () => {
       if (!confirm('Remover este contato?')) return;
@@ -376,8 +403,181 @@
     render();
   }
 
+  // ---------- importar / exportar planilha ----------
+  // Colunas reconhecidas pelo nome (sem diferenciar acentos/maiúsculas). Etapas aceitas:
+  // "Contato feito", "Perdido [Contato feito]", "Perdido - Contato feito", "Perdido" + coluna "Perdido em"...
+  const COLUNAS = [
+    { key: 'titulo', label: 'Negociação', aliases: ['nome da negociacao', 'titulo', 'oportunidade', 'negocio', 'nome do negocio', 'deal'] },
+    { key: 'etapa', label: 'Etapa', aliases: ['estagio', 'fase', 'status', 'etapa do funil', 'funil'] },
+    { key: 'perdido_etapa', label: 'Perdido em', aliases: ['etapa da perda', 'perdido na etapa'] },
+    { key: 'motivo_perda', label: 'Motivo da perda', aliases: ['motivo de perda', 'motivo'] },
+    { key: 'contato.nome', label: 'Contato', aliases: ['nome do contato', 'nome', 'lead', 'nome do lead', 'cliente'] },
+    { key: 'contato.telefone', label: 'Telefone', aliases: ['celular', 'whatsapp', 'fone', 'telefone do contato'] },
+    { key: 'contato.email', label: 'E-mail', aliases: ['email', 'email do contato'] },
+    { key: 'empresa.nome', label: 'Empresa', aliases: ['loja', 'nome da loja', 'nome da empresa', 'marca', 'restaurante'] },
+    { key: 'empresa.hub', label: 'Hub', aliases: ['qual hub'] },
+    { key: 'empresa.segmento', label: 'Segmento', aliases: [] },
+    { key: 'fonte', label: 'Fonte', aliases: ['origem', 'canal', 'fonte do lead'] },
+    { key: 'campanha', label: 'Campanha', aliases: ['utm campaign', 'utm_campaign'] },
+    { key: 'valor_total', label: 'Valor', aliases: ['valor total', 'valor da negociacao', 'mensalidade', 'valor estimado'], type: 'money' },
+    { key: 'qualificacao', label: 'Qualificação', aliases: [] },
+    { key: 'previsao_fechamento', label: 'Previsão de fechamento', aliases: ['previsao'], type: 'date' },
+    { key: 'responsavel', label: 'Responsável', aliases: ['vendedor', 'dono', 'proprietario', 'owner', 'closer', 'sdr'] },
+    { key: 'criado_em', label: 'Criada em', aliases: ['criado em', 'data de criacao', 'data de entrada', 'data', 'data do lead'], type: 'date' },
+    { key: 'instagram', label: 'Instagram', aliases: [] },
+    { key: 'num_pedidos', label: 'Número de pedidos', aliases: ['pedidos', 'pedidos mes', 'pedidos por mes'] },
+    { key: 'anotacoes', label: 'Anotações', aliases: ['observacoes', 'notas', 'obs', 'observacao'] },
+  ];
+  const ALIAS_ETAPA = { novo: 'Sem contato', lead: 'Sem contato', reuniao: 'Reunião inicial', negociacao: 'Em negociação',
+    fechado: FECHADO, ganho: FECHADO, ganha: FECHADO, fechamento: FECHADO, interesse: 'Identificação de interesse' };
+  function acharEtapa(txt) {
+    const n = norm(txt);
+    if (!n) return null;
+    return ETAPAS.find(e => norm(e) === n) || ALIAS_ETAPA[n]
+      || ETAPAS.find(e => n.includes(norm(e)) || norm(e).includes(n)) || null;
+  }
+  // devolve { etapa, perdido_etapa?, desconhecida? }
+  function lerEtapa(raw, perdidoCol) {
+    const s = String(raw || '').trim();
+    if (!s) return { etapa: ETAPAS[0] };
+    const m = s.match(/^perdid[oa]s?\b\s*[-–:]?\s*(.*)$/i);
+    if (m) {
+      const dentro = m[1].replace(/^[[(]\s*|\s*[\])]$/g, '').trim() || String(perdidoCol || '').trim();
+      const e = acharEtapa(dentro);
+      return { etapa: PERDIDO, perdido_etapa: e && e !== FECHADO ? e : null, desconhecida: dentro && !e ? s : null };
+    }
+    const e = acharEtapa(s);
+    return e ? { etapa: e } : { etapa: ETAPAS[0], desconhecida: s };
+  }
+  const QUALIF = v => QUALIFICACAO.find(q => norm(q) === norm(v)) || null;
+  const dataISO = v => { const d = parse.date(v); return d ? new Date(`${d}T12:00:00`).toISOString() : null; };
+
+  function montarImportacao(texto, pularDuplicados) {
+    texto = texto.replace(/^﻿/, '');
+    if (!texto.trim()) return null;
+    const primeira = texto.split(/\r?\n/)[0];
+    const delim = primeira.includes('\t') ? '\t' : (primeira.split(';').length >= primeira.split(',').length ? ';' : ',');
+    const linhas = parseDelimited(texto, delim);
+    if (linhas.length < 2) return null;
+    const lookup = {};
+    COLUNAS.forEach(c => [c.label, c.key, ...c.aliases].forEach(n => { lookup[norm(n)] ??= c; }));
+    const cab = linhas[0];
+    const mapa = cab.map(h => lookup[norm(h)] || null);
+    // evita a mesma coluna da planilha preencher dois campos
+    const usados = new Set();
+    mapa.forEach((c, i) => { if (c && usados.has(c.key)) mapa[i] = null; else if (c) usados.add(c.key); });
+
+    const existentes = new Set(deals.flatMap(d => contatosDe(d).flatMap(c => [digits(c.telefone).slice(-8), norm(c.email)])).filter(x => x && x.length >= 6));
+    const desconhecidas = {}, porColuna = {};
+    let duplicados = 0;
+    const registros = [];
+    for (const l of linhas.slice(1)) {
+      if (!l.some(c => c.trim())) continue;
+      const v = {};
+      mapa.forEach((c, i) => { const x = (l[i] || '').trim(); if (c && x) v[c.key] = x; });
+      const chaves = [digits(v['contato.telefone']).slice(-8), norm(v['contato.email'])].filter(x => x && x.length >= 6);
+      if (chaves.some(k => existentes.has(k))) { duplicados++; if (pularDuplicados) continue; }
+      chaves.forEach(k => existentes.add(k));
+
+      const et = lerEtapa(v.etapa, v.perdido_etapa);
+      if (et.desconhecida) desconhecidas[et.desconhecida] = (desconhecidas[et.desconhecida] || 0) + 1;
+      const criado = dataISO(v.criado_em) || now();
+      const titulo = v.titulo || [v['contato.nome'], v['empresa.nome']].filter(Boolean).join(' - ') || 'Negociação importada';
+      const limpa = o => Object.fromEntries(Object.entries(o).filter(([, x]) => !isBlank(x)));
+      const d = limpa({
+        id: Store.uid(), titulo, etapa: et.etapa, etapa_desde: criado, criado_em: criado,
+        perdido_etapa: et.perdido_etapa, motivo_perda: et.etapa === PERDIDO ? v.motivo_perda : null,
+        fonte: v.fonte, campanha: v.campanha, valor_total: parse.num(v.valor_total),
+        qualificacao: QUALIF(v.qualificacao), previsao_fechamento: parse.date(v.previsao_fechamento),
+        responsavel: v.responsavel || eu, instagram: v.instagram, num_pedidos: v.num_pedidos,
+        anotacoes: [v.anotacoes, et.desconhecida ? `Etapa na planilha: ${et.desconhecida}` : null].filter(Boolean).join('\n') || null,
+        importado_em: now(),
+      });
+      d.contatos = [limpa({ nome: v['contato.nome'], telefone: v['contato.telefone'] ? maskPhone(v['contato.telefone']) : null, email: v['contato.email'] })];
+      d.empresa = limpa({ nome: v['empresa.nome'], hub: HUBS_CRM.find(h => norm(h) === norm(v['empresa.hub'])) || v['empresa.hub'], segmento: v['empresa.segmento'] });
+      d.historico = [{ etapa: d.etapa, em: criado, por: 'Importação', ...(d.etapa === PERDIDO ? { perdido_em: d.perdido_etapa, motivo: d.motivo_perda } : {}) }];
+      porColuna[colunaDe(d)] = (porColuna[colunaDe(d)] || 0) + 1;
+      registros.push(d);
+    }
+    return { registros, duplicados, desconhecidas, porColuna,
+      reconhecidas: cab.filter((_, i) => mapa[i]), ignoradas: cab.filter((h, i) => !mapa[i] && h.trim()) };
+  }
+
+  function abrirImportacao() {
+    let res = null;
+    const dlg = openModal({
+      title: 'Importar negociações de planilha',
+      wide: true,
+      body: `
+        <p>Copie as linhas da planilha (Excel ou Google Sheets) <b>com a linha de cabeçalho</b> e cole abaixo, ou escolha um arquivo CSV.
+          As colunas são reconhecidas pelo nome. Na coluna <b>Etapa</b>, use o nome da etapa do funil ou, para perdidos,
+          <code>Perdido [Contato feito]</code>.
+          <a href="#" id="modelo">Baixar planilha modelo</a></p>
+        <textarea class="input mono" rows="7" placeholder="Cole aqui…"></textarea>
+        <div class="row"><input type="file" accept=".csv,.tsv,.txt">
+          <label class="check"><input type="checkbox" id="pular-dup" checked> Ignorar contatos que já estão no CRM (mesmo telefone ou e-mail)</label></div>
+        <div class="import-preview small"></div>`,
+      actions: [
+        { label: 'Cancelar', cls: 'ghost' },
+        { label: 'Importar', cls: 'primary', onClick: async () => {
+          if (!res?.registros.length) { toast('Nada para importar'); return false; }
+          await Store.saveMany('crm', res.registros);
+          toast(`${res.registros.length} negociações importadas`, 'ok');
+          await load();
+        } },
+      ],
+    });
+    const ta = $('textarea', dlg), prev = $('.import-preview', dlg), pular = $('#pular-dup', dlg);
+    const atualizar = () => {
+      res = montarImportacao(ta.value, pular.checked);
+      if (!res) { prev.innerHTML = ''; return; }
+      const etapas = [...ETAPAS, ...ETAPAS_PERDA.map(perdidoLabel)].filter(c => res.porColuna[c])
+        .concat(Object.keys(res.porColuna).filter(c => ![...ETAPAS, ...ETAPAS_PERDA.map(perdidoLabel)].includes(c)));
+      const desc = Object.entries(res.desconhecidas);
+      prev.innerHTML = `
+        <p><b>${res.registros.length} negociações</b> prontas para importar${res.duplicados ? ` · ${res.duplicados} já existiam no CRM${pular.checked ? ' (serão ignoradas)' : ' (serão importadas de novo)'}` : ''}.</p>
+        ${etapas.length ? `<div class="import-etapas">${etapas.map(c => `<span class="tag ${etapaDoLabel(c) !== undefined ? 'lost' : ''}">${esc(c)}: <b>${res.porColuna[c]}</b></span>`).join('')}</div>` : ''}
+        ${desc.length ? `<p class="warn-box">Etapas não reconhecidas (as negociações vão para <b>${esc(ETAPAS[0])}</b> e o nome original fica nas anotações):
+          ${desc.map(([e, n]) => `<b>${esc(e)}</b> (${n})`).join(', ')}</p>` : ''}
+        <p class="muted">Colunas reconhecidas: ${res.reconhecidas.map(esc).join(', ') || 'nenhuma'}${res.ignoradas.length ? `<br>Colunas ignoradas: ${res.ignoradas.map(esc).join(', ')}` : ''}</p>`;
+    };
+    ta.addEventListener('input', atualizar);
+    pular.addEventListener('change', atualizar);
+    $('input[type=file]', dlg).addEventListener('change', async e => { const f = e.target.files[0]; if (f) { ta.value = await f.text(); atualizar(); } });
+    $('#modelo', dlg).addEventListener('click', e => {
+      e.preventDefault();
+      baixarCSV('modelo-importacao-crm.csv', [COLUNAS.map(c => c.label),
+        ['Ana - Burger da Ana', 'Contato feito', '', '', 'Ana Souza', '(31) 99999-0000', 'ana@email.com', 'Burger da Ana', 'Savassi', 'Hambúrguer', 'Instagram', '', '2500', 'Q3', '', eu, fmt.date(dates.today()), '@burgerdaana', 'De 150 a 400', ''],
+        ['João - Sushi Top', 'Perdido [Identificação de interesse]', '', 'Preço', 'João Lima', '(31) 98888-0000', '', 'Sushi Top', 'Pampulha', 'Japonesa', 'Indicação', '', '3000', 'Q1', '', eu, fmt.date(dates.today()), '', '', '']]);
+    });
+  }
+
+  function baixarCSV(nome, linhas) {
+    const q = x => `"${String(x ?? '').replace(/"/g, '""')}"`;
+    const blob = new Blob(['﻿' + linhas.map(l => l.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function exportar() {
+    const val = (d, c) => {
+      if (c.key === 'etapa') return colunaDe(d);
+      if (c.key.startsWith('contato.')) return contatosDe(d)[0][c.key.slice(8)];
+      const v = get(d, c.key);
+      if (c.type === 'date') return v ? fmt.date(String(v)) : '';
+      if (c.type === 'money') return isBlank(v) ? '' : String(v).replace('.', ',');
+      return v;
+    };
+    baixarCSV(`crm-${dates.today()}.csv`, [COLUNAS.map(c => c.label), ...filtrados().map(d => COLUNAS.map(c => val(d, c)))]);
+  }
+
   // ---------- eventos ----------
   $('#nova')?.addEventListener('click', nova);
+  $('#importar')?.addEventListener('click', abrirImportacao);
+  $('#exportar')?.addEventListener('click', exportar);
   $('#backdrop').addEventListener('click', fechar);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && openId && !document.querySelector('dialog[open]')) fechar(); });
   ['busca', 'f-resp', 'f-fonte', 'f-qual', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));

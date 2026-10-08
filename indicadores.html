@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3c52">
+  <title>Indicadores · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202610081000">
+</head>
+<body>
+  <main class="content ind-page">
+    <header class="page-head">
+      <div><h1>Indicadores · <span id="area-nome"></span></h1><p>Lançamento mensal e acompanhamento das metas da área</p></div>
+      <div class="spacer"></div>
+      <label class="ind-ano"><span class="muted small">Ano</span><select class="input" id="ano"></select></label>
+      <button class="btn ghost" id="gerenciar">Gerenciar indicadores</button>
+    </header>
+
+    <section class="card" id="lancamento"></section>
+
+    <section class="card table-card ind-tabela">
+      <div class="table-wrap"><table class="data static" id="tabela"></table></div>
+      <p class="muted small ind-legenda"><span class="auto-dot"></span> calculado pelo sistema ·
+        <span class="leg hit">verde</span> meta atingida · <span class="leg miss">vermelho</span> fora da meta · clique em um indicador para ver o gráfico</p>
+    </section>
+
+    <section class="card">
+      <h3 id="graf-titulo"></h3>
+      <p class="muted small" id="graf-sub" style="margin:-8px 0 12px"></p>
+      <div class="chart-box"><canvas id="grafico"></canvas></div>
+    </section>
+  </main>
+  <script src="config.js?v=202610081000"></script>
+  <script src="store.js?v=202610081000"></script>
+  <script>
+    // área pela URL (?area=mkt|comercial|cs); sem parâmetro, abre a área do próprio usuário
+    (() => {
+      const AREAS = { mkt: 'MKT', comercial: 'Comercial', cs: 'CS' };
+      const pedida = AREAS[(new URLSearchParams(location.search).get('area') || '').toLowerCase()];
+      const minha = Object.values(AREAS).find(a => a === Store.perfil().area);
+      window.IND_AREA = pedida || minha || 'Comercial';
+      document.body.dataset.page = 'ind-' + window.IND_AREA.toLowerCase();
+    })();
+  </script>
+  <script src="common.js?v=202610081000"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="dash.js?v=202610081000"></script>
+  <script src="indicadores.js?v=202610081000"></script>
+</body>
+</html>

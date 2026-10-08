@@ -7,7 +7,8 @@ Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as pl
 | Página | Arquivo | O que faz |
 |---|---|---|
 | Início | `index.html` | Resumo rápido de todas as áreas |
-| CRM | `crm.html` | Kanban de negociações do Comercial (Sem contato → Negócio fechado, e Perdido). Cada resposta do formulário cria uma negociação |
+| CRM | `crm.html` | Kanban de negociações do Comercial (Sem contato → Negócio fechado). No fim do funil há uma coluna de perda por etapa: Perdido [Contato feito], Perdido [Identificação de interesse]... Cada resposta do formulário cria uma negociação. Importa e exporta planilha |
+| Indicadores | `indicadores.html?area=mkt` / `comercial` / `cs` | Lançamento mensal dos indicadores de cada área, com metas, fórmulas (ex.: CPL = investimento ÷ leads) e valores preenchidos pelo sistema a partir dos cadastros |
 | Comercial | `comercial.html` | Controle de entrada de clientes (cadastro, busca, filtro por hub, importar/exportar planilha) |
 | CS | `cs.html` | Solicitações de saída e aviso prévio. Ao digitar a loja, completa cliente, hub, mensalidade, taxa, espaço e data de início a partir do Comercial. Calcula a **saída prevista** (solicitação + aviso prévio) e o **tempo de vida** (meses) |
 | Dashboard Comercial | `dashboard-comercial.html` | Novos clientes, mensalidade adicionada, ticket médio, % ICP, upsells, atraso de entrada, base ativa, gráficos por mês, hub e modelo |
@@ -103,7 +104,7 @@ Quem preenche não precisa de login: as respostas são gravadas pela função `e
 
 ## Permissões e áreas
 
-O sistema é dividido em 3 áreas: **Comercial** (CRM, Clientes, Dashboard Comercial), **CS** (Solicitações de saída, Dashboard CS) e **MKT** (Leads do formulário).
+O sistema é dividido em 3 áreas: **Comercial** (CRM, Clientes, Dashboard Comercial, Indicadores), **CS** (Solicitações de saída, Dashboard CS, Indicadores) e **MKT** (Leads do formulário, Indicadores).
 
 | Perfil | O que pode |
 |---|---|
@@ -116,3 +117,21 @@ As regras valem no próprio banco (Supabase, RLS), não só nas telas.
 1. Rode o [`supabase-schema.sql`](supabase-schema.sql) no SQL Editor do Supabase.
 2. Abra **Sistema → Permissões** e clique em **Tornar-me administrador**. Enquanto não houver um administrador, todos os usuários logados têm acesso total.
 3. Cadastre cada pessoa: crie o login no Supabase (Authentication → Users → Add user) e, em Permissões, informe o mesmo e-mail, o perfil e a área.
+
+## Importar negociações no CRM
+
+Em **CRM → Importar planilha**, cole as linhas da planilha (com o cabeçalho) ou escolha um CSV. Use **Baixar planilha modelo** para ver as colunas aceitas: Negociação, Etapa, Contato, Telefone, E-mail, Empresa, Hub, Fonte, Valor, Responsável, Criada em, Motivo da perda, entre outras.
+
+- **Etapa:** o nome da etapa do funil ou, para perdidos, `Perdido [Nome da etapa]`. Também são aceitos `Perdido - Nome da etapa` e uma coluna separada **Perdido em**.
+- **Etapas que o sistema não reconhece:** a negociação entra em "Sem contato" e o nome original fica nas anotações.
+- **Duplicados:** contatos que já estão no CRM (mesmo telefone ou e-mail) são ignorados, se a opção estiver marcada.
+
+## Indicadores das áreas
+
+Cada área tem uma aba **Indicadores** no menu. No topo, escolha o mês e lance os valores. Abaixo, a tabela mostra o ano, com as metas.
+
+- **Manual:** lançado pela equipe.
+- **Automático** (bolinha azul): o sistema calcula a partir do CRM, dos Clientes, do CS ou dos Leads. Se alguém lançar um valor, ele substitui o calculado.
+- **Fórmula:** calculado a partir de outros indicadores, pelo código. Ex.: `investimento / leads`. O total do ano usa só os meses em que todos os valores da conta existem.
+
+Em **Gerenciar indicadores**, a equipe da área adiciona, remove ou reordena indicadores, e define metas e fórmulas. Os valores ficam nas tabelas `ind_mkt`, `ind_comercial` e `ind_cs`: cada área altera só os próprios indicadores. **Depois desta atualização, rode de novo o `supabase-schema.sql`** para o banco reconhecer essas tabelas. Até lá, só administradores conseguem salvar indicadores.

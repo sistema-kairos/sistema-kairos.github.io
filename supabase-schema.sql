@@ -1,6 +1,6 @@
 -- Execute este script no Supabase: Dashboard > SQL Editor > New query > cole e rode.
 
--- Tabela única com os registros de todas as abas (comercial, crm, cs, leads, perfis, config, status, heartbeat).
+-- Tabela única com os registros de todas as abas (comercial, crm, cs, leads, ind_*, perfis, config, status, heartbeat).
 create table if not exists public.registros (
   tabela     text        not null,
   id         text        not null,
@@ -23,9 +23,9 @@ alter table public.registros enable row level security;
 create or replace function public.area_da_tabela(t text)
 returns text language sql immutable as $$
   select case t
-    when 'comercial' then 'Comercial' when 'crm' then 'Comercial'
-    when 'cs' then 'CS'
-    when 'leads' then 'MKT'
+    when 'comercial' then 'Comercial' when 'crm' then 'Comercial' when 'ind_comercial' then 'Comercial'
+    when 'cs' then 'CS' when 'ind_cs' then 'CS'
+    when 'leads' then 'MKT' when 'ind_mkt' then 'MKT'
     when 'perfis' then 'admin'
     else 'geral' end
 $$;

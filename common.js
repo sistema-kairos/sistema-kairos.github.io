@@ -149,13 +149,16 @@ const NAV = [
     { page: 'crm', href: 'crm.html', label: 'CRM' },
     { page: 'comercial', href: 'comercial.html', label: 'Clientes' },
     { page: 'dash-comercial', href: 'dashboard-comercial.html', label: 'Dashboard Comercial' },
+    { page: 'ind-comercial', href: 'indicadores.html?area=comercial', label: 'Indicadores' },
   ] },
   { group: 'CS', area: 'CS', items: [
     { page: 'cs', href: 'cs.html', label: 'Solicitações de saída' },
     { page: 'dash-cs', href: 'dashboard-cs.html', label: 'Dashboard CS' },
+    { page: 'ind-cs', href: 'indicadores.html?area=cs', label: 'Indicadores' },
   ] },
   { group: 'MKT', area: 'MKT', items: [
     { page: 'leads', href: 'leads.html', label: 'Leads do formulário' },
+    { page: 'ind-mkt', href: 'indicadores.html?area=mkt', label: 'Indicadores' },
   ] },
   { group: 'Sistema', items: [
     { page: 'sistemas', href: 'sistemas.html', label: 'Status dos Sistemas' },

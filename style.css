@@ -439,3 +439,47 @@ select.v:disabled { appearance: none; }
 .qcard:hover, .qcard.on { border-color: var(--accent); }
 .qcard.on { background: var(--accent-50); }
 .tag.q-sem { background: var(--surface-2); color: var(--text-2); }
+
+/* CRM: colunas de perda por etapa e importação */
+.col.first-lost { margin-left: 18px; position: relative; }
+.col.first-lost::before { content: "Perdidos"; position: absolute; left: -14px; top: 12px; writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--critical-text); }
+.col.lost .col-name { color: var(--critical-text); }
+.import-etapas { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.tag.lost { background: var(--critical-bg); color: var(--critical-text); }
+.warn-box { background: var(--warning-bg); color: var(--warning-text); padding: 8px 12px; border-radius: 10px; }
+
+/* Indicadores por área */
+.ind-page { max-width: 1500px; }
+.ind-ano { display: flex; align-items: center; gap: 8px; }
+.ind-ano .input { width: auto; }
+#lancamento { margin-bottom: 16px; }
+.lanc-head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.lanc-head .field { width: 200px; }
+.lanc-head p { margin: 0 0 8px; max-width: 560px; }
+.lanc-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.lanc-grid .field > span { display: flex; align-items: center; gap: 6px; }
+.auto-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; vertical-align: middle; }
+.lanc-calc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.calc-chip { background: var(--accent-50); color: var(--brand); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; white-space: nowrap; }
+.lanc-foot { margin-top: 14px; }
+.ind-tabela { margin-bottom: 16px; }
+#tabela th.mes { cursor: pointer; }
+#tabela th.mes.on { color: var(--accent-700); box-shadow: inset 0 -3px 0 var(--accent); }
+#tabela td, #tabela th { padding: 9px 10px; }
+#tabela .sticky { position: sticky; left: 0; background: var(--surface); z-index: 1; min-width: 210px; white-space: normal; }
+#tabela thead .sticky { background: var(--surface-2); z-index: 2; }
+#tabela tbody tr { cursor: pointer; }
+#tabela tbody tr.sel td { background: var(--accent-50); }
+.ind-nome { display: block; font-weight: 600; }
+.ind-tipo { display: block; font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+.ind-erro { display: block; font-size: 11px; color: var(--critical-text); }
+#tabela td.hit { color: var(--good-text); font-weight: 600; }
+#tabela td.miss { color: var(--critical-text); font-weight: 600; }
+#tabela td.auto { font-style: italic; }
+#tabela td.total { font-weight: 700; background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
+.ind-legenda { padding: 10px 14px; margin: 0; border-top: 1px solid var(--border); }
+.leg.hit { color: var(--good-text); font-weight: 600; }
+.leg.miss { color: var(--critical-text); font-weight: 600; }
+table.ger td { vertical-align: middle; padding: 6px; }
+table.ger .input { padding: 6px 8px; }
