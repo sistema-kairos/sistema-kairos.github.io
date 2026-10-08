@@ -135,3 +135,11 @@ Cada área tem uma aba **Indicadores** no menu. No topo, escolha o mês e lance 
 - **Fórmula:** calculado a partir de outros indicadores, pelo código. Ex.: `investimento / leads`. O total do ano usa só os meses em que todos os valores da conta existem.
 
 Em **Gerenciar indicadores**, a equipe da área adiciona, remove ou reordena indicadores, e define metas e fórmulas. Os valores ficam nas tabelas `ind_mkt`, `ind_comercial` e `ind_cs`: cada área altera só os próprios indicadores. **Depois desta atualização, rode de novo o `supabase-schema.sql`** para o banco reconhecer essas tabelas. Até lá, só administradores conseguem salvar indicadores.
+
+## Tarefas no CRM
+
+Cada negociação tem a seção **Tarefas**, no topo do painel. Os botões criam uma tarefa de **Ligação, Cold call, Follow up, Visita, Reunião**, ou de outro tipo (WhatsApp, E-mail, Outro), com data, hora, responsável e anotações.
+
+- Marque a caixinha para concluir. Se a negociação ficar sem tarefas pendentes, o sistema sugere agendar a próxima.
+- O card no quadro mostra a próxima tarefa: em amarelo se for hoje, em vermelho se estiver atrasada.
+- No topo do CRM aparecem os contadores de tarefas atrasadas e para hoje (clique para filtrar), e o filtro **Tarefas** separa as negociações com tarefa atrasada, para hoje ou sem tarefa agendada.

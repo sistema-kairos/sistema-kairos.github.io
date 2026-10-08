@@ -53,7 +53,41 @@
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
     ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
     user: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0Z"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>',
+    cold: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/><path d="M16 2h6v6M22 2l-7 7"/></svg>',
+    repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+    users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
+    mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>',
+    task: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></svg>',
   };
+
+  // ---------- tarefas ----------
+  // Ficam dentro da negociação (d.tarefas), com as mesmas permissões do CRM:
+  // { id, tipo, titulo, data 'AAAA-MM-DD', hora 'HH:MM', responsavel, notas, concluida, concluida_em, concluida_por, criada_em, criada_por }
+  const TIPOS_TAREFA = [
+    { tipo: 'Ligação', icon: 'phone' }, { tipo: 'Cold call', icon: 'cold' }, { tipo: 'Follow up', icon: 'repeat' },
+    { tipo: 'Visita', icon: 'pin' }, { tipo: 'Reunião', icon: 'users' }, { tipo: 'WhatsApp', icon: 'wa' },
+    { tipo: 'E-mail', icon: 'mail' }, { tipo: 'Outro', icon: 'task' },
+  ];
+  const iconeTarefa = t => ICON[(TIPOS_TAREFA.find(x => x.tipo === t.tipo) || TIPOS_TAREFA[TIPOS_TAREFA.length - 1]).icon];
+  const tarefasDe = d => d.tarefas || [];
+  const horaAgora = () => new Date().toTimeString().slice(0, 5);
+  const quando = t => `${t.data || '9999-12-31'} ${t.hora || '99:99'}`;
+  const pendentes = d => tarefasDe(d).filter(t => !t.concluida).sort((a, b) => quando(a).localeCompare(quando(b)));
+  function situacao(t) {
+    if (t.concluida) return 'feita';
+    const hoje = dates.today();
+    if (!t.data) return 'sem-data';
+    if (t.data < hoje || (t.data === hoje && t.hora && t.hora < horaAgora())) return 'atrasada';
+    return t.data === hoje ? 'hoje' : 'futura';
+  }
+  function quandoTexto(t) {
+    if (!t.data) return 'Sem data';
+    const hoje = dates.today();
+    const dia = t.data === hoje ? 'Hoje' : t.data === dates.addDays(hoje, 1) ? 'Amanhã' : t.data === dates.addDays(hoje, -1) ? 'Ontem' : fmt.date(t.data);
+    return t.hora ? `${dia}, ${t.hora}` : dia;
+  }
+  const tituloTarefa = t => t.titulo || t.tipo;
 
   // ---------- dados ----------
   async function load() {
@@ -139,8 +173,14 @@
   // ---------- quadro ----------
   function filtrados() {
     const q = norm($('#busca').value);
-    const resp = $('#f-resp').value, fonte = $('#f-fonte').value, qual = $('#f-qual').value;
+    const resp = $('#f-resp').value, fonte = $('#f-fonte').value, qual = $('#f-qual').value, tar = $('#f-tarefa').value;
     return deals.filter(d => {
+      if (tar) {
+        const sts = pendentes(d).map(situacao);
+        if (tar === 'atrasadas' && !sts.includes('atrasada')) return false;
+        if (tar === 'hoje' && !sts.some(x => x === 'hoje' || x === 'atrasada')) return false;
+        if (tar === 'sem' && (sts.length || d.etapa === PERDIDO || d.etapa === FECHADO)) return false;
+      }
       if (resp && (d.responsavel || '') !== resp) return false;
       if (qual && (d.qualificacao || 'sem') !== qual) return false;
       if (fonte && (d.fonte || '') !== fonte) return false;
@@ -172,6 +212,13 @@
       ${emp.nome || emp.hub ? `<div class="deal-sub">${esc([emp.nome, emp.hub].filter(Boolean).join(' · '))}</div>` : ''}
       ${q || fonte ? `<div class="deal-tags">${q}${fonte}</div>` : ''}
       ${perda}
+      ${(() => {
+        const t = pendentes(d)[0];
+        if (!t) return '';
+        const st = situacao(t), mais = pendentes(d).length - 1;
+        return `<div class="deal-task ${st}" title="${st === 'atrasada' ? 'Tarefa atrasada' : 'Próxima tarefa'}">${iconeTarefa(t)}
+          <span>${esc(tituloTarefa(t))} · ${esc(quandoTexto(t))}</span>${mais > 0 ? `<b>+${mais}</b>` : ''}</div>`;
+      })()}
       <div class="deal-foot">
         <span class="deal-value">${d.valor_total ? fmt.money(d.valor_total) : ''}</span>
         <span class="muted small" title="Tempo nesta etapa">${dias === null ? '' : dias === 0 ? 'hoje' : `há ${dias} d`}</span>
@@ -200,7 +247,12 @@
 
     const abertas = lista.filter(d => d.etapa !== PERDIDO && d.etapa !== FECHADO);
     const valorAberto = abertas.reduce((s, d) => s + (Number(d.valor_total) || 0), 0);
-    $('#resumo').textContent = `${abertas.length} em aberto · ${fmt.money(valorAberto)} em negociação · ${lista.filter(d => d.etapa === FECHADO).length} fechadas`;
+    const sts = lista.flatMap(d => pendentes(d).map(situacao));
+    const nAtr = sts.filter(x => x === 'atrasada').length, nHoje = sts.filter(x => x === 'hoje').length;
+    $('#resumo').innerHTML = `${abertas.length} em aberto · ${esc(fmt.money(valorAberto))} em negociação · ${lista.filter(d => d.etapa === FECHADO).length} fechadas`
+      + (nAtr ? ` · <button class="link-btn danger" data-tar="atrasadas">${nAtr} tarefa${nAtr > 1 ? 's' : ''} atrasada${nAtr > 1 ? 's' : ''}</button>` : '')
+      + (nHoje ? ` · <button class="link-btn" data-tar="hoje">${nHoje} para hoje</button>` : '');
+    $$('[data-tar]', $('#resumo')).forEach(b => b.addEventListener('click', () => { $('#f-tarefa').value = b.dataset.tar; render(); }));
     // métricas por qualificação das negociações em aberto
     const porQ = q => abertas.filter(d => (d.qualificacao || 'sem') === q);
     $('#qualif').innerHTML = [...QUALIFICACAO, 'sem'].map(q => {
@@ -277,6 +329,86 @@
     return `<details class="sec" ${aberta ? 'open' : ''}><summary><h3>${titulo}</h3></summary><div class="sec-body">${corpo}</div></details>`;
   }
 
+  function tarefaHTML(t) {
+    const st = situacao(t);
+    return `<li class="tarefa ${st}" data-tid="${esc(t.id)}">
+      <input type="checkbox" class="tarefa-check" ${t.concluida ? 'checked' : ''} ${dis} title="${t.concluida ? 'Reabrir tarefa' : 'Concluir tarefa'}" aria-label="Concluir ${esc(tituloTarefa(t))}">
+      <button class="tarefa-corpo" type="button" ${canEdit ? '' : 'disabled'}>
+        <span class="tarefa-ico">${iconeTarefa(t)}</span>
+        <span class="tarefa-txt"><span class="tarefa-titulo">${esc(tituloTarefa(t))}</span>
+          <span class="tarefa-meta">${t.titulo && t.titulo !== t.tipo ? `${esc(t.tipo)} · ` : ''}${t.concluida
+            ? `Concluída ${esc(fmt.dateTime(t.concluida_em))}${t.concluida_por ? ' por ' + esc(t.concluida_por) : ''}`
+            : `<span class="tarefa-quando">${st === 'atrasada' ? 'Atrasada · ' : ''}${esc(quandoTexto(t))}</span>`}${t.responsavel ? ` · ${esc(t.responsavel)}` : ''}</span>
+          ${t.notas ? `<span class="tarefa-notas">${esc(t.notas)}</span>` : ''}</span>
+      </button></li>`;
+  }
+  function tarefasHTML(d) {
+    const pend = pendentes(d);
+    const feitas = tarefasDe(d).filter(t => t.concluida).sort((a, b) => (b.concluida_em || '').localeCompare(a.concluida_em || ''));
+    return `${canEdit ? `<div class="tarefa-novas">${TIPOS_TAREFA.slice(0, 5).map(x =>
+        `<button class="chip" data-nova-tarefa="${esc(x.tipo)}">${ICON[x.icon]}${esc(x.tipo)}</button>`).join('')}
+        <button class="chip" data-nova-tarefa="">+ Outra</button></div>` : ''}
+      <ul class="tarefas">${pend.map(tarefaHTML).join('') || '<li class="muted small tarefa-vazia">Nenhuma tarefa pendente</li>'}</ul>
+      ${feitas.length ? `<details class="tarefas-feitas"><summary>Concluídas (${feitas.length})</summary><ul class="tarefas">${feitas.map(tarefaHTML).join('')}</ul></details>` : ''}`;
+  }
+
+  function formTarefa(d, t = null) {
+    const nova = !t || !t.id;
+    const base = { tipo: 'Ligação', data: dates.today(), responsavel: d.responsavel || eu, ...(t || {}) };
+    const resps = [...new Set([eu, d.responsavel, ...deals.map(x => x.responsavel)].filter(Boolean))];
+    const dlg = openModal({
+      title: nova ? 'Nova tarefa' : 'Editar tarefa',
+      body: `<form class="form-grid" novalidate>
+        <div class="field wide"><span>Tipo</span><div class="tipo-tarefa">${TIPOS_TAREFA.map(x => `<label class="chip ${x.tipo === base.tipo ? 'on' : ''}">
+          <input type="radio" name="tipo" value="${esc(x.tipo)}" ${x.tipo === base.tipo ? 'checked' : ''}>${ICON[x.icon]}${esc(x.tipo)}</label>`).join('')}</div></div>
+        <label class="field wide"><span>Título</span><input class="input" name="titulo" value="${esc(base.titulo || '')}" placeholder="Ex.: Ligar para apresentar a proposta (opcional)"></label>
+        <label class="field"><span>Data *</span><input class="input" type="date" name="data" value="${esc(base.data || '')}" required></label>
+        <label class="field"><span>Hora</span><input class="input" type="time" name="hora" value="${esc(base.hora || '')}"></label>
+        <label class="field wide"><span>Responsável</span><input class="input" name="responsavel" value="${esc(base.responsavel || '')}" list="dl-resp-tarefa">
+          <datalist id="dl-resp-tarefa">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist></label>
+        <label class="field wide"><span>Anotações</span><textarea class="input" name="notas" rows="3" placeholder="O que falar, endereço da visita, combinados…">${esc(base.notas || '')}</textarea></label>
+        <div class="field wide atalhos-data"><span class="muted small">Atalhos:</span>
+          ${[['Hoje', 0], ['Amanhã', 1], ['Em 3 dias', 3], ['Em 1 semana', 7]].map(([l, n]) => `<button type="button" class="link-btn" data-dias="${n}">${l}</button>`).join('')}</div>
+      </form>`,
+      actions: [
+        ...(!nova ? [{ label: 'Excluir', cls: 'danger left', onClick: async () => {
+          if (!confirm('Excluir esta tarefa?')) return false;
+          d.tarefas = tarefasDe(d).filter(x => x.id !== t.id);
+          await persist(d); renderDrawer(); render();
+          toast('Tarefa excluída');
+        } }] : []),
+        { label: 'Cancelar', cls: 'ghost' },
+        { label: nova ? 'Criar tarefa' : 'Salvar', cls: 'primary', onClick: async dl => {
+          const f = $('form', dl);
+          if (!f.reportValidity()) return false;
+          const v = k => f.elements[k].value.trim() || null;
+          const dados = { tipo: f.elements.tipo.value, titulo: v('titulo'), data: v('data'), hora: v('hora'), responsavel: v('responsavel'), notas: v('notas') };
+          if (nova) d.tarefas = [...tarefasDe(d), { id: Store.uid(), ...dados, concluida: false, criada_em: now(), criada_por: eu }];
+          else Object.assign(tarefasDe(d).find(x => x.id === t.id), dados);
+          await persist(d); renderDrawer(); render();
+          toast(nova ? 'Tarefa criada' : 'Tarefa salva', 'ok');
+        } },
+      ],
+    });
+    $$('.tipo-tarefa input', dlg).forEach(r => r.addEventListener('change', () => {
+      $$('.tipo-tarefa .chip', dlg).forEach(c => c.classList.toggle('on', c.contains(r) ? r.checked : false));
+    }));
+    $$('[data-dias]', dlg).forEach(b => b.addEventListener('click', () => { $('[name=data]', dlg).value = dates.addDays(dates.today(), +b.dataset.dias); }));
+    if (nova) setTimeout(() => $('[name=titulo]', dlg)?.focus(), 50);
+  }
+
+  async function concluirTarefa(d, t, feita) {
+    Object.assign(t, feita ? { concluida: true, concluida_em: now(), concluida_por: eu } : { concluida: false, concluida_em: null, concluida_por: null });
+    await persist(d);
+    renderDrawer(); render();
+    if (feita) {
+      toast(`Tarefa concluída: ${tituloTarefa(t)}`, 'ok');
+      if (!pendentes(d).length && d.etapa !== PERDIDO && d.etapa !== FECHADO && confirm('Tarefa concluída! Quer agendar a próxima tarefa desta negociação?')) {
+        formTarefa(d, { tipo: 'Follow up', data: dates.addDays(dates.today(), 2) });
+      }
+    }
+  }
+
   function renderDrawer() {
     const d = deals.find(x => x.id === openId);
     if (!d) return fechar();
@@ -306,6 +438,7 @@
         </div>` : ''}
       </div>
       <div class="drawer-body">
+        ${secao(`Tarefas${pendentes(d).length ? ` <span class="sec-count">${pendentes(d).length}</span>` : ''}`, tarefasHTML(d))}
         ${secao('Negociação', `
           ${kv('Nome', 'titulo', d)}
           ${kv('Qualificação', 'qualificacao', d, 'select', { options: QUALIFICACAO })}
@@ -346,6 +479,12 @@
 
   function bindDrawer(d) {
     $('#fechar', drawer).addEventListener('click', fechar);
+    $$('[data-nova-tarefa]', drawer).forEach(b => b.addEventListener('click', e => { e.preventDefault(); formTarefa(d, { tipo: b.dataset.novaTarefa || 'Outro' }); }));
+    $$('.tarefa', drawer).forEach(li => {
+      const t = tarefasDe(d).find(x => x.id === li.dataset.tid);
+      $('.tarefa-check', li).addEventListener('change', e => concluirTarefa(d, t, e.target.checked));
+      if (canEdit) $('.tarefa-corpo', li).addEventListener('click', () => formTarefa(d, t));
+    });
     $('#etapa', drawer)?.addEventListener('change', e => {
       const v = e.target.value, perda = etapaDoLabel(v);
       e.target.value = colunaDe(d);
@@ -580,7 +719,7 @@
   $('#exportar')?.addEventListener('click', exportar);
   $('#backdrop').addEventListener('click', fechar);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && openId && !document.querySelector('dialog[open]')) fechar(); });
-  ['busca', 'f-resp', 'f-fonte', 'f-qual', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));
+  ['busca', 'f-resp', 'f-fonte', 'f-qual', 'f-tarefa', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));
   // novos leads do formulário aparecem sozinhos
   setInterval(() => { if (!openId && !dragging && !document.querySelector('dialog[open]') && !document.hidden) load(); }, 30000);
 
