@@ -168,3 +168,13 @@ A aba **Status dos Sistemas** é exclusiva dos administradores.
 ## Mudanças no banco (migrações)
 
 Cada mudança no banco fica num arquivo em [`supabase/migrations/`](supabase/migrations), aplicado pelo script `scripts/aplicar-sql.sh`. O script usa a API oficial do Supabase, com um token restrito ao banco e guardado no Keychain do Mac (nunca no repositório). O banco registra o que já foi aplicado na tabela `privado.migracoes`, para nada rodar duas vezes. O [`supabase-schema.sql`](supabase-schema.sql) continua sendo o retrato completo do banco, para criar um projeto do zero.
+
+## Calculadora de margem (só administradores)
+
+Em **Sistema → Calculadora de margem**, calcula a margem bruta e a margem de contribuição de cada plano.
+
+- **Premissas globais:** você informa o custo total e a base de rateio, e o sistema calcula o custo unitário. São elas: imposto, aluguel e energia do freezer, energia do microondas, software, mão de obra, ocupação e comissão.
+- **Planos:** cada plano tem venda média, pedidos, SKUs, a estrutura (fração de freezer, microondas, m² e CNPJs) e a receita (mensalidade, % variável e R$ por pedido).
+- **Cenários:** é possível ter vários (por exemplo, um por HUB), criados como cópia do atual.
+
+Os dados ficam na tabela `margem`, que só administradores leem e alteram.

@@ -610,3 +610,50 @@ details[open] > summary > .chev { transform: rotate(90deg); }
 .coleta table td:first-child { white-space: normal; }
 .nav-items > div { transition: visibility .22s; }
 .nav-items.fechado > div { visibility: hidden; }
+
+/* Calculadora de margem */
+.margem-page { max-width: 1320px; }
+.mg-cenarios { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.mg-cenarios .input { width: auto; min-width: 200px; }
+#premissas { display: grid; gap: 14px; margin-bottom: 16px; }
+.mg-intro { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.mg-intro h2 { font-size: 18px; margin-bottom: 6px; }
+.mg-intro p { margin: 0; color: var(--text-2); max-width: 680px; }
+.mg-sec { padding: 0; overflow: hidden; }
+.mg-sec-tit { margin: 0; padding: 14px 18px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); border-bottom: 1px solid var(--border); }
+.mg-item { display: grid; grid-template-columns: minmax(220px, 1.3fr) 1fr 0.7fr minmax(170px, 0.8fr); gap: 16px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.mg-item:last-child { border-bottom: 0; }
+.mg-desc { display: grid; gap: 2px; font-size: 13px; }
+.mg-desc b { font-size: 14px; }
+.mg-desc span { color: var(--text-2); }
+.mg-desc em { color: var(--muted); font-size: 12px; }
+.mg-campo { display: grid; gap: 4px; font-size: 12px; color: var(--text-2); }
+.mg-campo.mg-largo { grid-column: span 2; }
+.mg-campo .input { font-variant-numeric: tabular-nums; }
+.mg-res { text-align: right; display: grid; gap: 2px; }
+.mg-res span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.mg-res b { font-family: ui-monospace, Menlo, monospace; font-size: 17px; }
+.mg-tab { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.mg-tab th, .mg-tab td { border-bottom: 1px solid var(--border); border-left: 1px solid var(--border); padding: 6px 8px; }
+.mg-tab thead th { background: var(--surface-2); position: relative; min-width: 205px; }
+.mg-tab .mg-rot { text-align: left; min-width: 250px; position: sticky; left: 0; background: var(--surface); z-index: 1; border-left: 0; }
+.mg-tab thead .mg-rot { background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.mg-nome { width: 100%; border: 1px solid transparent; background: transparent; font: inherit; font-size: 13px; font-weight: 700; text-align: center; border-radius: 8px; padding: 4px 22px 4px 6px; color: var(--text); }
+.mg-nome:hover:not(:disabled), .mg-nome:focus { border-color: var(--border); background: var(--surface); outline: none; }
+.mg-rm { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+.mg-secao th { text-align: left; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 14px 10px 8px; background: var(--surface); border-left: 0; }
+.mg-in { width: 100%; text-align: right; border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; font: inherit; font-variant-numeric: tabular-nums; background: var(--surface); color: var(--text); }
+.mg-in:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
+.mg-val { text-align: right; font-family: ui-monospace, Menlo, monospace; font-size: 13px; white-space: nowrap; }
+.mg-forte td { font-weight: 700; }
+.mg-dest td { background: #f1f8d8; font-weight: 800; }
+.mg-dest .mg-rot { background: #e8f3c4; }
+.mg-ajuda { color: var(--accent-700); cursor: help; font-size: 12px; }
+.mg-add { margin: 12px; }
+@media (max-width: 900px) {
+  .mg-item { grid-template-columns: 1fr 1fr; }
+  .mg-desc { grid-column: 1 / -1; }
+  .mg-campo.mg-largo { grid-column: 1 / -1; }
+  .mg-res { grid-column: 1 / -1; text-align: left; }
+  .mg-tab .mg-rot { min-width: 170px; }
+}

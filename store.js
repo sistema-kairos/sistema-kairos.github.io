@@ -154,7 +154,7 @@ const Store = (() => {
   // ---------- permissões (espelham as regras do supabase-schema.sql) ----------
   // papel: Administrador | Utilizador | Espectador; area: Comercial | CS | MKT | Todas as áreas
   const AREA_DA_TABELA = { comercial: 'Comercial', crm: 'Comercial', cs: 'CS', leads: 'MKT', perfis: 'admin',
-    ind_comercial: 'Comercial', ind_cs: 'CS', ind_mkt: 'MKT' };
+    ind_comercial: 'Comercial', ind_cs: 'CS', ind_mkt: 'MKT', margem: 'admin' };
   const areaDe = t => AREA_DA_TABELA[t] || 'geral';
 
   // sem Supabase (modo local) ou antes de ativar as permissões, todos são administradores

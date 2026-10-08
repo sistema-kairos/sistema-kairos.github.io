@@ -4,23 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b3c52">
-  <title>Sprints · Órion</title>
+  <title>Calculadora de margem · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
   <link rel="stylesheet" href="style.css?v=202610091900">
 </head>
-<body data-page="sprints">
-  <main class="content sprints-page">
+<body data-page="margem">
+  <main class="content margem-page">
     <header class="page-head">
-      <div><h1>Sprints</h1><p>A sprint e a retrospectiva de cada semana, com a coleta de dados preenchida pela plataforma</p></div>
+      <div><h1>Calculadora de margem</h1><p>Margem bruta e de contribuição por plano, a partir das premissas de custo</p></div>
       <div class="spacer"></div>
       <span class="muted small" id="estado"></span>
-      <button class="btn primary" id="nova-sprint">+ Adicionar sprint da semana seguinte</button>
     </header>
-    <div id="semanas"></div>
+    <div class="mg-cenarios">
+      <label class="muted small" for="cenario">Cenário</label>
+      <select class="input" id="cenario"></select>
+      <button class="btn ghost small" id="novo-cenario">+ Novo cenário</button>
+      <button class="btn ghost small" id="renomear">Renomear</button>
+      <button class="btn ghost small danger" id="excluir-cenario">Excluir</button>
+    </div>
+    <div id="premissas"></div>
+    <section class="card table-card" id="planos"></section>
   </main>
   <script src="config.js?v=202610091900"></script>
   <script src="store.js?v=202610091900"></script>
   <script src="common.js?v=202610091900"></script>
-  <script src="sprints.js?v=202610091900"></script>
+  <script src="margem.js?v=202610091900"></script>
 </body>
 </html>

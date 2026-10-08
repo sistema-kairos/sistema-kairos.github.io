@@ -164,6 +164,7 @@ const NAV = [
     { page: 'ind-mkt', href: 'indicadores.html?area=mkt', label: 'Indicadores' },
   ] },
   { group: 'Sistema', items: [
+    { page: 'margem', href: 'margem.html', label: 'Calculadora de margem', area: 'admin' },
     { page: 'sistemas', href: 'sistemas.html', label: 'Status dos Sistemas', area: 'admin' },
     { page: 'permissoes', href: 'permissoes.html', label: 'Permissões', area: 'admin' },
     { page: 'config', href: 'configuracoes.html', label: 'Configurações', area: 'admin' },
