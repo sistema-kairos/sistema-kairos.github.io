@@ -87,14 +87,148 @@
   }
 
   // ---------- telas ----------
+  // três abas: Calcular (escolhe um plano e vê a margem dele), Comparar planos (tabela) e Premissas
+  let aba = (() => { try { return localStorage.getItem('gh_margem_aba') || 'calc'; } catch { return 'calc'; } })();
+  let planoSel = null;
+  let freezerOutro = false;
+
   function render() {
     $('#cenario').innerHTML = cenarios.map(c => `<option value="${esc(c.id)}" ${c.id === atual.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('');
+    $$('.mg-aba').forEach(b => { const on = b.dataset.aba === aba; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+    if (aba === 'premissas') renderPremissas();
+    else if (aba === 'comparar') renderComparar();
+    else renderCalc();
+  }
+
+  // ----- aba Calcular -----
+  const FREEZER_OPC = [[0, 'Sem freezer'], [0.25, '¼ freezer'], [0.5, '½ freezer'], [1, 'Freezer inteiro']];
+  function renderCalc() {
+    if (!atual.planos.some(x => x.id === planoSel)) planoSel = atual.planos[0]?.id;
+    const p = atual.planos.find(x => x.id === planoSel);
     const dis = canEdit ? '' : 'disabled';
-    $('#premissas').innerHTML = `
+    const campo = (f, label, ajuda = '', pre = '', suf = '') => `<label class="mg-f"><span>${label}</span>
+      <div class="affix">${pre ? `<span>${pre}</span>` : ''}<input class="input" data-f="${f}" inputmode="decimal" value="${numIn(p[f])}" ${dis}>${suf ? `<span>${suf}</span>` : ''}</div>
+      ${ajuda ? `<small>${ajuda}</small>` : ''}</label>`;
+    const outro = freezerOutro || !FREEZER_OPC.some(([v]) => v === n(p.freezers));
+    $('#mg-conteudo').innerHTML = `
+      <section class="card mg-escolha">
+        <h2>O que você está calculando?</h2>
+        <p class="muted">Escolha um plano para ver quanto sobra dele por mês. Mude qualquer número e o resultado se atualiza na hora.</p>
+        <div class="mg-chips" role="radiogroup" aria-label="Plano">${atual.planos.map(x => `<button type="button" role="radio" aria-checked="${x.id === p.id}"
+          class="mg-chip ${x.id === p.id ? 'on' : ''}" data-sel="${esc(x.id)}">${esc(x.nome)}</button>`).join('')}
+          ${canEdit ? '<button type="button" class="mg-chip novo" id="mg-novo">+ Novo plano</button>' : ''}</div>
+      </section>
+      <div class="mg-calc">
+        <div class="mg-form">
+          <section class="card mg-bloco"><h3>📦 Plano</h3>
+            <label class="mg-f"><span>Nome do plano</span><input class="input" data-f="nome" value="${esc(p.nome)}" ${dis}></label></section>
+          <section class="card mg-bloco"><h3>🛍️ Sobre o cliente</h3>
+            <div class="mg-grid">
+              ${campo('venda', 'Quanto ele vende por mês', 'Venda média do cliente', 'R$')}
+              ${campo('pedidos', 'Quantos pedidos por mês')}
+              <div class="mg-f"><span>Ticket médio</span><b class="mg-ticket" data-out="ticket"></b><small>venda ÷ pedidos</small></div>
+              ${campo('skus', 'Produtos (SKUs) no plano', 'Informativo: não muda a conta')}
+            </div></section>
+          <section class="card mg-bloco"><h3>🧊 Espaço e equipamentos</h3>
+            <div class="mg-f"><span>Freezer</span>
+              <div class="mg-seg" role="radiogroup" aria-label="Freezer">${FREEZER_OPC.map(([v, l]) => `<button type="button" role="radio" data-freezer="${v}"
+                aria-checked="${!outro && n(p.freezers) === v}" class="${!outro && n(p.freezers) === v ? 'on' : ''}" ${dis}>${l}</button>`).join('')}
+                <button type="button" role="radio" data-freezer="outro" aria-checked="${outro}" class="${outro ? 'on' : ''}" ${dis}>Outro</button></div>
+              ${outro ? `<div class="mg-outro">${campo('freezers', 'Fração de freezer', 'Ex.: 0,75 = três quartos de um freezer')}</div>` : ''}
+            </div>
+            <div class="mg-grid">
+              ${campo('microondas', 'Microondas', 'Com microondas, a energia é cobrada por pedido', '', 'un.')}
+              ${campo('m2', 'Área ocupada', 'Base do custo de ocupação', '', 'm²')}
+              ${campo('cnpjs', 'CNPJs', 'Licença de software por CNPJ')}
+            </div></section>
+          <section class="card mg-bloco"><h3>💰 Quanto cobramos</h3>
+            <div class="mg-grid">
+              ${campo('mensalidade', 'Mensalidade fixa', '', 'R$')}
+              ${campo('aliq', 'Percentual sobre as vendas', '', '', '%')}
+              ${campo('vpp', 'Valor por pedido', '', 'R$')}
+            </div></section>
+          ${canEdit && atual.planos.length > 1 ? '<button class="btn ghost small danger mg-excluir" id="mg-excluir-plano">Excluir este plano</button>' : ''}
+        </div>
+        <aside class="card mg-result" id="mg-result" aria-live="polite"></aside>
+      </div>`;
+    atualizarCalc();
+    ligarCalc(p);
+  }
+
+  function atualizarCalc() {
+    const p = atual.planos.find(x => x.id === planoSel);
+    if (!p || !$('#mg-result')) return;
+    const r = calcular(p);
+    const t = $('[data-out="ticket"]'); if (t) t.textContent = brl(r.ticket);
+    const parte = v => r.bruta ? v / r.bruta : 0;
+    const larg = v => Math.max(0, Math.min(100, parte(v) * 100)).toFixed(1);
+    const custos = [
+      ['🧾', 'Impostos', r.imposto, 'Simples Nacional sobre a receita bruta'],
+      ['🧊', 'Equipamentos, energia e software', r.csp, 'Freezer, microondas e licença'],
+      ['👥', 'Mão de obra operacional', r.mo, `${brl(unit('mao_obra'))} por pedido`],
+      ['🏢', 'Ocupação do espaço', r.ocup, `${brl(unit('ocupacao'))} por m²`],
+      ['🤝', 'Comissão comercial', r.comissao, `${pct2(atual.premissas.comissao?.pct)} da mensalidade`],
+    ];
+    const de100 = r.bruta ? (r.mcp * 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : null;
+    $('#mg-result').innerHTML = `
+      <div class="mg-hero ${r.mc < 0 ? 'neg' : ''}">
+        <span>Margem de contribuição</span>
+        <b>${pct1(r.mcp)}</b>
+        <small>${brl(r.mc)} por mês</small>
+      </div>
+      ${de100 ? `<p class="mg-frase">De cada <b>R$ 100</b> que o cliente paga, sobram <b>${de100}</b> depois de todos os custos.</p>` : ''}
+      <div class="mg-sub">
+        <div><span>Receita bruta</span><b>${brl(r.bruta)}</b><small>${brl(p.mensalidade)} fixos + ${brl(r.recVar)} variáveis</small></div>
+        <div><span>Margem bruta</span><b>${pct1(r.mb)}</b><small>${brl(r.lucro)} antes da comissão</small></div>
+      </div>
+      <h4>Para onde vai a receita</h4>
+      <ul class="mg-barras">
+        ${custos.map(([ic, l, v, obs]) => `<li><div class="mg-bl"><span>${ic} ${l}</span><b>−${brl(v)}</b></div>
+          <div class="mg-track"><span style="width:${larg(v)}%"></span></div><small>${pct1(parte(v))} da receita · ${obs}</small></li>`).join('')}
+        <li class="sobra"><div class="mg-bl"><span>✅ Sobra (margem de contribuição)</span><b>${brl(r.mc)}</b></div>
+          <div class="mg-track"><span style="width:${larg(r.mc)}%"></span></div><small>${pct1(r.mcp)} da receita</small></li>
+      </ul>
+      <details class="mg-conta"><summary>Ver a conta completa</summary>
+        <table>${LINHAS.filter(l => l.secao || (l.calc && l.label !== 'Ticket médio por pedido')).map(l => l.secao
+          ? `<tr class="sec"><th colspan="2">${esc(l.secao)}</th></tr>`
+          : `<tr class="${l.destaque ? 'dest' : ''}"><td>${esc(l.label)}</td><td>${l.calc(r)}</td></tr>`).join('').replace(/<tr class="sec"><th colspan="2">Bases do plano<\/th><\/tr>/, '')}</table>
+      </details>`;
+  }
+
+  function ligarCalc(p) {
+    $$('.mg-chip[data-sel]').forEach(b => b.addEventListener('click', () => { planoSel = b.dataset.sel; freezerOutro = false; renderCalc(); }));
+    $('#mg-novo')?.addEventListener('click', () => {
+      const novo = { ...structuredClone(p), id: Store.uid(), nome: 'Novo plano' };
+      atual.planos.push(novo); planoSel = novo.id; freezerOutro = false;
+      renderCalc(); salvar(true);
+      const i = $('[data-f="nome"]'); i?.focus(); i?.select();
+    });
+    $('#mg-excluir-plano')?.addEventListener('click', () => {
+      if (!confirm(`Excluir o plano "${p.nome}"?`)) return;
+      atual.planos = atual.planos.filter(x => x.id !== p.id); planoSel = atual.planos[0]?.id;
+      renderCalc(); salvar(true);
+    });
+    $$('.mg-form [data-f]').forEach(i => i.addEventListener('input', () => {
+      p[i.dataset.f] = i.dataset.f === 'nome' ? i.value : parse.num(i.value);
+      if (i.dataset.f === 'nome') { const c = $(`.mg-chip[data-sel="${CSS.escape(p.id)}"]`); if (c) c.textContent = i.value || 'Sem nome'; }
+      atualizarCalc(); salvar();
+    }));
+    $$('[data-freezer]').forEach(b => b.addEventListener('click', () => {
+      if (b.dataset.freezer === 'outro') freezerOutro = true;
+      else { freezerOutro = false; p.freezers = Number(b.dataset.freezer); salvar(); }
+      renderCalc();
+      if (freezerOutro) $('[data-f="freezers"]')?.focus();
+    }));
+  }
+
+  // ----- aba Premissas -----
+  function renderPremissas() {
+    const dis = canEdit ? '' : 'disabled';
+    $('#mg-conteudo').innerHTML = `
       <section class="card mg-intro">
-        <div><h2>Premissas globais — <span>${esc(atual.nome)}</span></h2>
-          <p>Toda premissa é <b>derivada</b>: você edita o custo total e a base de rateio, e o sistema calcula o custo unitário.
-          Isso obriga a pensar nos números reais — não há atalho para martelar o unitário direto.</p></div>
+        <div><h2>Premissas — <span>${esc(atual.nome)}</span></h2>
+          <p>Os custos que valem para todos os planos deste cenário. Você informa o <b>custo total</b> e a <b>base de rateio</b>
+          (por exemplo, a conta de energia e o número de freezers), e o sistema calcula o custo unitário.</p></div>
         ${canEdit ? '<button class="btn ghost small" id="restaurar">Restaurar padrão</button>' : ''}
       </section>
       ${PREMISSAS.map(s => `<section class="card mg-sec">
@@ -103,25 +237,35 @@
           const v = atual.premissas[i.k] || {};
           const campos = i.tipo === 'pct'
             ? `<label class="mg-campo mg-largo"><span>${esc(i.label)}</span><div class="affix"><input class="input" data-p="${i.k}" data-c="pct" inputmode="decimal" value="${numIn(v.pct)}" ${dis}><span>%</span></div></label>`
-            : `<label class="mg-campo"><span>Custo total (R$)</span><div class="affix"><input class="input" data-p="${i.k}" data-c="total" inputmode="decimal" value="${numIn(v.total)}" ${dis}><span>R$</span></div></label>
-               <label class="mg-campo"><span>Base (${esc(i.base)})</span><input class="input" data-p="${i.k}" data-c="base" inputmode="decimal" value="${numIn(v.base)}" ${dis}></label>`;
+            : `<label class="mg-campo"><span>Custo total</span><div class="affix"><span>R$</span><input class="input" data-p="${i.k}" data-c="total" inputmode="decimal" value="${numIn(v.total)}" ${dis}></div></label>
+               <label class="mg-campo"><span>Dividido por (${esc(i.base)})</span><input class="input" data-p="${i.k}" data-c="base" inputmode="decimal" value="${numIn(v.base)}" ${dis}></label>`;
           return `<div class="mg-item">
-            <div class="mg-desc"><b>${esc(i.nome)}</b><span>Conta: <code>${esc(i.conta)}</code></span><em>${esc(i.nota)}</em></div>
+            <div class="mg-desc"><b>${esc(i.nome)}</b><em>${esc(i.nota)}</em><span>Conta contábil: <code>${esc(i.conta)}</code></span></div>
             ${campos}
             <div class="mg-res" data-res="${i.k}"></div>
           </div>`;
         }).join('')}
       </section>`).join('')}`;
-    renderTabela();
-    atualizarResultados();
-    ligar();
+    atualizarPremissas();
+    $$('[data-p]').forEach(i => i.addEventListener('input', () => {
+      atual.premissas[i.dataset.p] = { ...(atual.premissas[i.dataset.p] || {}), [i.dataset.c]: parse.num(i.value) };
+      atualizarPremissas(); salvar();
+    }));
+    $('#restaurar')?.addEventListener('click', () => {
+      if (!confirm(`Voltar as premissas e os planos de "${atual.nome}" para os valores padrão?`)) return;
+      atual.premissas = premissasPadrao(); atual.planos = planosPadrao();
+      render(); salvar(true);
+    });
+  }
+  function atualizarPremissas() {
+    PREMISSAS.flatMap(s => s.itens).forEach(i => {
+      const el = $(`[data-res="${i.k}"]`);
+      if (el) el.innerHTML = i.tipo === 'pct' ? `<span>Aplicado</span><b>${pct2(atual.premissas[i.k]?.pct)}</b>`
+        : `<span>Custo unitário</span><b>${brl(unit(i.k))} <small>por ${esc(i.base)}</small></b>`;
+    });
   }
 
-  function resultadoPremissa(i) {
-    if (PREMISSAS[0].itens[0].k === i.k || i.tipo === 'pct') return `<span>Fração aplicada</span><b>${pct2(atual.premissas[i.k]?.pct)}</b>`;
-    return `<span>Custo unitário</span><b>${brl(unit(i.k))} / ${esc(i.base)}</b>`;
-  }
-
+  // ----- aba Comparar planos -----
   // linhas da tabela: in = campo editável do plano; calc = valor calculado
   const LINHAS = [
     { secao: 'Bases do plano' },
@@ -161,62 +305,47 @@
     { calc: r => pct1(r.mcp), label: '(%) Margem de contribuição', destaque: true },
   ];
 
-  function renderTabela() {
+  function renderComparar() {
     const dis = canEdit ? '' : 'disabled';
     const ps = atual.planos;
-    $('#planos').innerHTML = `
-      <div class="table-wrap"><table class="mg-tab">
+    $('#mg-conteudo').innerHTML = `
+      <p class="muted mg-dica">Todos os planos lado a lado, com a conta completa. Os campos em branco são editáveis.</p>
+      <section class="card table-card"><div class="table-wrap"><table class="mg-tab">
         <thead><tr><th class="mg-rot">Plano</th>${ps.map(p => `<th>
           <input class="mg-nome" data-plano="${esc(p.id)}" data-f="nome" value="${esc(p.nome)}" ${dis} aria-label="Nome do plano">
           ${canEdit && ps.length > 1 ? `<button class="icon-btn small mg-rm" data-rm="${esc(p.id)}" title="Remover plano" aria-label="Remover plano ${esc(p.nome)}">×</button>` : ''}</th>`).join('')}</tr></thead>
-        <tbody>${LINHAS.map(l => {
+        <tbody>${LINHAS.map((l, li) => {
           if (l.secao) return `<tr class="mg-secao"><th colspan="${ps.length + 1}">${esc(l.secao)}</th></tr>`;
           const cls = [l.destaque ? 'mg-dest' : '', l.forte ? 'mg-forte' : ''].join(' ');
           return `<tr class="${cls}"><td class="mg-rot" ${l.ajuda ? `title="${esc(l.ajuda)}"` : ''}>${esc(l.label)}${l.ajuda ? ' <span class="mg-ajuda">ⓘ</span>' : ''}</td>${ps.map(p => l.in
             ? `<td><input class="mg-in" data-plano="${esc(p.id)}" data-f="${l.in}" inputmode="decimal" value="${numIn(p[l.in])}" ${dis}></td>`
-            : `<td class="mg-val" data-calc="${LINHAS.indexOf(l)}" data-plano="${esc(p.id)}"></td>`).join('')}</tr>`;
+            : `<td class="mg-val" data-calc="${li}" data-plano="${esc(p.id)}"></td>`).join('')}</tr>`;
         }).join('')}</tbody>
       </table></div>
-      ${canEdit ? '<button class="btn ghost small mg-add" id="add-plano">+ Adicionar plano</button>' : ''}`;
-  }
-
-  function atualizarResultados() {
-    PREMISSAS.flatMap(s => s.itens).forEach(i => { const el = $(`[data-res="${i.k}"]`); if (el) el.innerHTML = resultadoPremissa(i); });
-    atual.planos.forEach(p => {
-      const r = calcular(p);
-      $$(`[data-calc][data-plano="${CSS.escape(p.id)}"]`).forEach(td => { td.textContent = LINHAS[td.dataset.calc].calc(r); });
-    });
-  }
-
-  function ligar() {
-    $$('[data-p]').forEach(i => i.addEventListener('input', () => {
-      atual.premissas[i.dataset.p] = { ...(atual.premissas[i.dataset.p] || {}), [i.dataset.c]: parse.num(i.value) };
-      atualizarResultados(); salvar();
-    }));
-    ligarTabela();
-    $('#restaurar')?.addEventListener('click', () => {
-      if (!confirm(`Voltar as premissas e os planos de "${atual.nome}" para os valores padrão?`)) return;
-      atual.premissas = premissasPadrao(); atual.planos = planosPadrao();
-      render(); salvar(true);
-    });
-  }
-  function ligarTabela() {
+      ${canEdit ? '<button class="btn ghost small mg-add" id="add-plano">+ Adicionar plano</button>' : ''}</section>`;
+    atualizarTabela();
     $$('[data-plano][data-f]').forEach(i => i.addEventListener('input', () => {
       const p = atual.planos.find(x => x.id === i.dataset.plano);
       p[i.dataset.f] = i.dataset.f === 'nome' ? i.value : parse.num(i.value);
-      atualizarResultados(); salvar();
+      atualizarTabela(); salvar();
     }));
     $$('[data-rm]').forEach(b => b.addEventListener('click', () => {
       const p = atual.planos.find(x => x.id === b.dataset.rm);
       if (!confirm(`Remover o plano "${p.nome}"?`)) return;
       atual.planos = atual.planos.filter(x => x.id !== p.id);
-      renderTabela(); atualizarResultados(); ligarTabela(); salvar(true);
+      renderComparar(); salvar(true);
     }));
     $('#add-plano')?.addEventListener('click', () => {
       const ult = atual.planos[atual.planos.length - 1];
       atual.planos.push({ ...structuredClone(ult || planosPadrao()[0]), id: Store.uid(), nome: 'Novo plano' });
-      renderTabela(); atualizarResultados(); ligarTabela(); salvar(true);
+      renderComparar(); salvar(true);
       $$('.mg-nome').pop()?.select();
+    });
+  }
+  function atualizarTabela() {
+    atual.planos.forEach(p => {
+      const r = calcular(p);
+      $$(`[data-calc][data-plano="${CSS.escape(p.id)}"]`).forEach(td => { td.textContent = LINHAS[td.dataset.calc].calc(r); });
     });
   }
 
@@ -233,6 +362,11 @@
   }
 
   $('#cenario').addEventListener('change', e => { atual = cenarios.find(c => c.id === e.target.value); render(); });
+  $$('.mg-aba').forEach(b => b.addEventListener('click', () => {
+    aba = b.dataset.aba;
+    try { localStorage.setItem('gh_margem_aba', aba); } catch {}
+    render();
+  }));
   if (canEdit) {
     $('#novo-cenario').addEventListener('click', () => {
       const nome = prompt('Nome do novo cenário (ex.: DS · HUB2). Ele começa como cópia do cenário atual:', `${atual.nome} (cópia)`);

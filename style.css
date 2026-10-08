@@ -657,3 +657,77 @@ details[open] > summary > .chev { transform: rotate(90deg); }
   .mg-res { grid-column: 1 / -1; text-align: left; }
   .mg-tab .mg-rot { min-width: 170px; }
 }
+
+/* Calculadora de margem: abas, escolha do plano e resultado */
+.mg-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.mg-abas { display: inline-flex; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 999px; flex-wrap: wrap; }
+.mg-aba { border: 0; background: none; font: inherit; font-weight: 600; font-size: 13.5px; color: var(--text-2); padding: 8px 16px; border-radius: 999px; cursor: pointer; }
+.mg-aba:hover { color: var(--text); }
+.mg-aba.on { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
+.mg-cenarios { margin-bottom: 0; }
+#mg-conteudo { display: grid; gap: 14px; }
+.mg-escolha h2 { font-size: 19px; }
+.mg-escolha p { margin: 4px 0 14px; }
+.mg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.mg-chip { border: 1.5px solid var(--border); background: var(--surface); font: inherit; font-weight: 600; font-size: 13.5px; color: var(--text-2);
+  padding: 9px 16px; border-radius: 999px; cursor: pointer; transition: border-color .15s, background .15s; }
+.mg-chip:hover { border-color: var(--accent); color: var(--text); }
+.mg-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.mg-chip.novo { border-style: dashed; color: var(--accent-700); }
+.mg-calc { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: 14px; align-items: start; }
+.mg-form { display: grid; gap: 14px; }
+.mg-bloco h3 { color: var(--text); font-size: 15px; font-weight: 800; margin: 0 0 12px; }
+.mg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-top: 12px; }
+.mg-bloco > .mg-f + .mg-grid { margin-top: 16px; }
+.mg-f { display: grid; gap: 5px; align-content: start; font-size: 13px; }
+.mg-f > span { font-weight: 600; color: var(--text-2); }
+.mg-f small { color: var(--muted); font-size: 11.5px; }
+.mg-f .input { font-variant-numeric: tabular-nums; }
+.mg-ticket { font-size: 20px; font-weight: 800; padding: 6px 0; }
+.mg-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.mg-seg button { border: 1.5px solid var(--border); background: var(--surface); font: inherit; font-size: 13px; font-weight: 600; color: var(--text-2);
+  padding: 8px 14px; border-radius: 12px; cursor: pointer; }
+.mg-seg button:hover:not(:disabled) { border-color: var(--accent); }
+.mg-seg button.on { border-color: var(--accent); background: var(--accent-50); color: var(--brand); }
+.mg-outro { max-width: 260px; margin-top: 10px; }
+.mg-excluir { justify-self: start; }
+.mg-result { position: sticky; top: 16px; display: grid; gap: 14px; }
+.mg-hero { background: var(--brand); color: #fff; border-radius: 18px; padding: 18px 20px; display: grid; gap: 2px; }
+.mg-hero span { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .8; font-weight: 600; }
+.mg-hero b { font-size: 44px; line-height: 1.05; letter-spacing: -.02em; }
+.mg-hero small { font-size: 15px; opacity: .9; }
+.mg-hero.neg { background: var(--critical); }
+.mg-frase { margin: 0; font-size: 14px; color: var(--text-2); }
+.mg-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mg-sub > div { background: var(--surface-2); border-radius: 14px; padding: 12px 14px; display: grid; gap: 2px; }
+.mg-sub span { font-size: 11.5px; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.mg-sub b { font-size: 19px; }
+.mg-sub small { font-size: 11.5px; color: var(--muted); }
+.mg-result h4 { margin: 4px 0 0; font-size: 14px; }
+.mg-barras { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.mg-bl { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+.mg-bl b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mg-track { height: 8px; border-radius: 99px; background: var(--surface-2); margin: 5px 0 3px; overflow: hidden; }
+.mg-track span { display: block; height: 100%; border-radius: 99px; background: var(--axis); }
+.mg-barras small { font-size: 11.5px; color: var(--muted); }
+.mg-barras .sobra { padding-top: 10px; border-top: 1px dashed var(--border); }
+.mg-barras .sobra .mg-bl { font-weight: 700; }
+.mg-barras .sobra .mg-track span { background: var(--good); }
+.mg-conta summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--accent-700); }
+.mg-conta table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px; }
+.mg-conta td { padding: 4px 0; border-bottom: 1px solid var(--border); }
+.mg-conta td:last-child { text-align: right; font-family: ui-monospace, Menlo, monospace; white-space: nowrap; }
+.mg-conta tr.sec th { text-align: left; padding: 10px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.mg-conta tr.dest td { font-weight: 800; }
+.mg-dica { margin: 0; }
+.mg-res b small { font-size: 12px; font-weight: 500; color: var(--text-2); font-family: inherit; }
+@media (max-width: 980px) {
+  .mg-calc { grid-template-columns: 1fr; }
+  .mg-result { position: static; order: -1; } /* no celular, o resultado aparece antes do formulário */
+}
+@media (max-width: 520px) {
+  .mg-hero b { font-size: 36px; }
+  .mg-sub { grid-template-columns: 1fr; }
+  .mg-abas { width: 100%; }
+  .mg-aba { flex: 1; padding: 8px 10px; }
+}

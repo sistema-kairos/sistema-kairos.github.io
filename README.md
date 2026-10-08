@@ -171,10 +171,10 @@ Cada mudança no banco fica num arquivo em [`supabase/migrations/`](supabase/mig
 
 ## Calculadora de margem (só administradores)
 
-Em **Sistema → Calculadora de margem**, calcula a margem bruta e a margem de contribuição de cada plano.
+Em **Sistema → Calculadora de margem**, organizada em três abas:
 
-- **Premissas globais:** você informa o custo total e a base de rateio, e o sistema calcula o custo unitário. São elas: imposto, aluguel e energia do freezer, energia do microondas, software, mão de obra, ocupação e comissão.
-- **Planos:** cada plano tem venda média, pedidos, SKUs, a estrutura (fração de freezer, microondas, m² e CNPJs) e a receita (mensalidade, % variável e R$ por pedido).
-- **Cenários:** é possível ter vários (por exemplo, um por HUB), criados como cópia do atual.
+- **🧮 Calcular:** escolha o plano ("O que você está calculando?") ou crie um novo e ajuste os dados em linguagem simples (cliente, espaço e equipamentos, quanto cobramos). O resultado aparece ao lado: margem de contribuição, margem bruta, receita bruta e "para onde vai a receita".
+- **📊 Comparar planos:** todos os planos lado a lado, com a conta completa (receita, impostos, CSP, mão de obra, ocupação, lucro bruto, comissão e margens).
+- **⚙️ Premissas:** os custos que valem para todos os planos do cenário. Você informa o custo total e a base de rateio, e o sistema calcula o custo unitário.
 
-Os dados ficam na tabela `margem`, que só administradores leem e alteram.
+Há vários **cenários** (por exemplo, um por HUB). Os dados ficam na tabela `margem`, que só administradores leem e alteram.
