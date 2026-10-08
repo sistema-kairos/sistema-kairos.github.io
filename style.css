@@ -91,6 +91,17 @@ h3 { font-size: 14px; margin: 0 0 12px; color: var(--text-2); font-weight: 600; 
 .brand-sub { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-soft); }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: auto; }
 .nav-group { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: #808080; padding: 16px 10px 4px; }
+/* grupos do menu retráteis */
+button.nav-group { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: 0; font-family: inherit;
+  cursor: pointer; text-align: left; border-radius: 10px; margin-top: 8px; padding: 10px 10px 6px; transition: color .15s; }
+button.nav-group:hover { color: #fff; }
+button.nav-group:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.nav-group svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s var(--ease-out); }
+button.nav-group.fechado svg { transform: rotate(-90deg); }
+.nav-items { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .22s var(--ease-out), opacity .22s; }
+.nav-items > div { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.nav-items.fechado { grid-template-rows: 0fr; opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .nav-items, button.nav-group svg { transition: none; } }
 .sidebar nav a { color: var(--side-text); text-decoration: none; padding: 9px 14px; border-radius: 999px; font-weight: 500; transition: background .15s, color .15s; }
 .sidebar nav a:hover { background: var(--side-hover); color: #fff; }
 .sidebar nav a.active { background: var(--accent); color: var(--brand); font-weight: 700; }
@@ -601,3 +612,5 @@ table.ger .input { padding: 6px 8px; }
   .coleta .v { width: 110px; }
 }
 .coleta table td:first-child { white-space: normal; }
+.nav-items > div { transition: visibility .22s; }
+.nav-items.fechado > div { visibility: hidden; }

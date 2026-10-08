@@ -187,20 +187,35 @@ function renderLayout() {
   const p = Store.perfil();
   const semPerfil = Store.isRemote() && !p.papel;
   const groups = NAV.map(g => ({ ...g, items: g.items.filter(i => !semPerfil && Store.veArea(i.area || g.area)) })).filter(g => g.items.length);
+  let menuAberto = {};
+  try { menuAberto = JSON.parse(localStorage.getItem('gh_menu')) || {}; } catch {}
   const side = document.createElement('aside');
   side.className = 'sidebar';
   side.innerHTML = `
     <a class="brand" href="index.html"><span class="brand-logo logo-mark logo-wordmark" role="img" aria-label="Órion"></span><span class="brand-sub">${esc(window.APP_CONFIG.appName)}</span></a>
-    <nav>${groups.map(g => `
-      ${g.group ? `<div class="nav-group">${g.group}</div>` : ''}
-      ${g.items.map(i => `<a href="${i.href}" class="${i.page === page ? 'active' : ''}">${i.label}</a>`).join('')}
-    `).join('')}</nav>
+    <nav>${groups.map((g, gi) => {
+      const links = g.items.map(i => `<a href="${i.href}" class="${i.page === page ? 'active' : ''}">${i.label}</a>`).join('');
+      if (!g.group) return links;
+      // grupo retrátil: o da página atual abre sempre; os demais seguem a última escolha (fechados por padrão)
+      const aberto = g.items.some(i => i.page === page) || menuAberto[g.group] === true;
+      return `<button type="button" class="nav-group ${aberto ? '' : 'fechado'}" data-grupo="${esc(g.group)}" aria-expanded="${aberto}" aria-controls="nav-g${gi}">
+          <span>${g.group}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="nav-items ${aberto ? '' : 'fechado'}" id="nav-g${gi}"><div>${links}</div></div>`;
+    }).join('')}</nav>
     <div class="side-foot">
       ${Store.isRemote()
         ? `<div class="muted small">${esc(sess?.email || '')}</div><div class="badge ${p.papel === 'Espectador' ? 'neutral' : 'lilac'}">${esc(perfilTexto(p))}</div><button class="btn ghost small" id="logout">Sair</button>`
         : `<div class="badge warn" title="Configure o Supabase em Configurações para compartilhar os dados">Modo local</div>`}
     </div>`;
   document.body.prepend(side);
+  $$('.nav-group[data-grupo]', side).forEach(b => b.addEventListener('click', () => {
+    const abrir = b.classList.contains('fechado');
+    b.classList.toggle('fechado', !abrir);
+    b.setAttribute('aria-expanded', abrir);
+    $('#' + b.getAttribute('aria-controls')).classList.toggle('fechado', !abrir);
+    menuAberto[b.dataset.grupo] = abrir;
+    try { localStorage.setItem('gh_menu', JSON.stringify(menuAberto)); } catch {}
+  }));
 
   const top = document.createElement('header');
   top.className = 'topbar';
