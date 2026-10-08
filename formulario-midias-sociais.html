@@ -114,6 +114,8 @@
       background: rgba(255, 138, 138, .12); color: var(--error); font-size: 14px; width: fit-content;
     }
     .err.show { display: inline-flex; animation: shake .35s; }
+    .err { flex-wrap: wrap; max-width: 640px; }
+    .err-detalhe { flex-basis: 100%; font-size: 11.5px; opacity: .75; font-family: ui-monospace, Menlo, monospace; word-break: break-word; }
     @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
 
     /* tela final */
@@ -316,10 +318,16 @@
       el.querySelectorAll('.choice').forEach(b => b.addEventListener('click', () => pick(step, +b.dataset.i, b)));
     }
 
-    function showError(msg) {
+    function showError(msg, detalhe) {
       const err = stage.querySelector('.slide:not(.leaving) .err');
       if (!err) return;
       err.textContent = msg;
+      if (detalhe) {
+        const d = document.createElement('small');
+        d.className = 'err-detalhe';
+        d.textContent = 'Detalhe: ' + detalhe;
+        err.appendChild(d);
+      }
       err.classList.remove('show'); void err.offsetWidth; err.classList.add('show');
     }
 
@@ -376,12 +384,27 @@
         if (document.getElementById('hp').value) { /* robô: finge sucesso sem gravar */ }
         else if (Store.isRemote()) {
           const s = Store.settings();
-          const r = await fetch(`${s.supabaseUrl}/rest/v1/rpc/enviar_lead`, {
+          // cada tentativa espera no máximo 15 s (rede ruim não deixa a pessoa presa em "Enviando…")
+          const enviar = () => fetch(`${s.supabaseUrl}/rest/v1/rpc/enviar_lead`, {
             method: 'POST',
             headers: { apikey: s.supabaseAnonKey, Authorization: `Bearer ${s.supabaseAnonKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ dados }),
+            signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
           });
-          if (!r.ok) throw new Error(await r.text());
+          // falha de conexão ou servidor momentaneamente indisponível: tenta mais 2 vezes antes de desistir
+          let r = null, falhaRede = null;
+          for (let tentativa = 0; tentativa < 3; tentativa++) {
+            if (tentativa) await new Promise(ok => setTimeout(ok, 1500 * tentativa));
+            try { r = await enviar(); falhaRede = null; } catch (e) { falhaRede = e; continue; }
+            if (r.ok || r.status < 500) break;
+          }
+          if (falhaRede) throw Object.assign(new Error(String(falhaRede.message || falhaRede)), { tipo: 'rede' });
+          if (!r.ok) {
+            const corpo = await r.text().catch(() => '');
+            let msg = corpo;
+            try { msg = JSON.parse(corpo).message || corpo; } catch {}
+            throw Object.assign(new Error(msg), { tipo: 'servidor', status: r.status });
+          }
         } else {
           // modo local (sem Supabase): guarda neste navegador, para testes
           const key = 'gh_data_leads';
@@ -403,9 +426,16 @@
           localStorage.setItem('gh_data_crm', JSON.stringify(crm));
         }
       } catch (e) {
-        console.error(e);
+        console.error('Falha ao enviar o formulário:', e);
         if (btn) { btn.disabled = false; btn.innerHTML = `Tentar novamente ${ICON_CHECK}`; }
-        showError('Não foi possível enviar agora. Verifique sua conexão e tente de novo.');
+        const detalhe = `${e.tipo === 'rede' ? 'conexão' : 'código ' + (e.status || '?')}: ${String(e.message || e).slice(0, 160)}`;
+        if (e.tipo === 'rede') {
+          showError('Não conseguimos falar com o servidor. Confira sua internet; se estiver em rede de empresa ou usar bloqueador de anúncios, tente pelo celular (4G) ou desative o bloqueador.', detalhe);
+        } else if (e.status === 400) {
+          showError('Alguma resposta não foi aceita. Volte e confira os campos.', detalhe);
+        } else {
+          showError('Nosso sistema está instável neste momento. Tente de novo em alguns minutos.', detalhe);
+        }
         return;
       }
       sent = true;
