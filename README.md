@@ -146,19 +146,22 @@ Cada negociação tem a seção **Tarefas**, no topo do painel. Os botões criam
 
 ## Sprints
 
-Aba aberta a toda a equipe (`sprints.html`): administradores e Utilizadores de qualquer área editam, e Espectadores só leem. Cada semana tem a sua sprint, no mesmo formato do documento que a equipe já usava:
+Aba aberta a toda a equipe (`sprints.html`): administradores e Utilizadores de qualquer área editam, e Espectadores só leem.
 
-- **Retrospectiva:** mostra o resultado da sprint anterior (pontos e KRs concluídos) e tem campos para "O que funcionou", "O que pode melhorar" e "Ações para esta semana".
-- **KRs:** cada KR tem área, nome, 🏆 prioridade, 💪 esforço (Fibonacci: 1, 2, 3, 5, 8, 13, 21), 👤 responsável, 📅 prazo e ▶️ tarefas. O total "💪 X/Y" soma o esforço dos KRs concluídos sobre o total.
-- **Nova sprint:** pode trazer os KRs não concluídos da semana anterior, só com as tarefas pendentes.
-- **Coleta de dados:** calculada automaticamente a partir do CRM na semana da sprint.
-  - Leads por prospecção ativa e passivos, pela fonte da negociação.
-  - Ligações, cold calls (realizadas e atendidas), porta a porta e visitas/reuniões, pelas tarefas concluídas no CRM.
-  - Contratos fechados e valor por hub.
-  - Q1/Q3/Q5 de MQL (campo "Qualificação MKT") e de SQL (campo "Qualificação").
+- **Uma linha por semana**, que abre e fecha. A semana atual abre sozinha.
+- Dentro de cada semana há duas partes, que também abrem e fecham:
+  - **📋 Sprint:** documento em branco com formatação (negrito, títulos, listas, checklist, separador e link) e, embaixo, o quadro **📊 Coleta de dados**;
+  - **🔁 Retrospectiva:** documento em branco.
+- Dá para colar o texto do ClickUp, do Word ou do Google Docs. A formatação é mantida, e qualquer código perigoso é removido.
+- Os documentos salvam sozinhos. Se duas pessoas editarem o mesmo documento ao mesmo tempo, o sistema avisa e pergunta qual versão manter.
+- **+ Adicionar sprint da semana seguinte** cria a semana depois da última sprint (ou a semana atual, se a equipe pulou semanas).
+- **Coleta de dados:** preenchida pela plataforma a partir do CRM, na semana da sprint.
+  - Leads PA e passivos, pela fonte da negociação.
+  - Ligações, cold calls (realizadas e atendidas), porta a porta e visitas/reuniões, pelas tarefas concluídas.
+  - Contratos e valor fechado por hub.
+  - Q1/Q3/Q5 de MQL e de SQL.
 
   Qualquer número pode ser corrigido à mão.
-- **Copiar texto:** gera a sprint em texto, no formato do documento, para colar no ClickUp ou no WhatsApp.
 
 A aba **Status dos Sistemas** é exclusiva dos administradores.
 

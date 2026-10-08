@@ -6,26 +6,21 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Sprints · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610091500">
+  <link rel="stylesheet" href="style.css?v=202610091700">
 </head>
 <body data-page="sprints">
   <main class="content sprints-page">
     <header class="page-head">
-      <div><h1>Sprints</h1><p>Retrospectiva, KRs e tarefas da semana e coleta de dados — para toda a equipe</p></div>
+      <div><h1>Sprints</h1><p>A sprint e a retrospectiva de cada semana, com a coleta de dados preenchida pela plataforma</p></div>
       <div class="spacer"></div>
       <span class="muted small" id="estado"></span>
-      <button class="btn primary" id="nova-sprint">+ Nova sprint</button>
+      <button class="btn primary" id="nova-sprint">+ Adicionar sprint da semana seguinte</button>
     </header>
-    <div class="sprint-nav">
-      <button class="btn ghost small" id="ant" aria-label="Sprint anterior">‹ Anterior</button>
-      <select class="input" id="sel-sprint" aria-label="Escolher sprint"></select>
-      <button class="btn ghost small" id="prox" aria-label="Próxima sprint">Próxima ›</button>
-    </div>
-    <div id="sprint"></div>
+    <div id="semanas"></div>
   </main>
-  <script src="config.js?v=202610091500"></script>
-  <script src="store.js?v=202610091500"></script>
-  <script src="common.js?v=202610091500"></script>
-  <script src="sprints.js?v=202610091500"></script>
+  <script src="config.js?v=202610091700"></script>
+  <script src="store.js?v=202610091700"></script>
+  <script src="common.js?v=202610091700"></script>
+  <script src="sprints.js?v=202610091700"></script>
 </body>
 </html>

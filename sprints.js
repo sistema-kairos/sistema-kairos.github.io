@@ -1,51 +1,75 @@
 // Sprints semanais (tabela 'sprints', aberta a toda a equipe; Espectadores só leem).
-//   's_AAAA-MM-DD'  → sprint: { tipo: 'sprint', inicio, fim, retro: { positivos, melhorar, acoes }, dados: { auto, manual, atualizado_em } }
-//   'kr_<id>'       → KR:     { tipo: 'kr', sprint, area, titulo, prioridade, esforco, responsavel, prazo, concluido, tarefas: [{ id, texto, data, feito }] }
-// Cada KR é um registro separado: duas pessoas editando KRs diferentes ao mesmo tempo não se sobrescrevem.
-// O quadro "Coleta de dados" é calculado a partir do CRM (negociações e tarefas da semana). Quem pode ler o CRM
-// guarda uma cópia dos números na sprint, para que todas as áreas vejam os mesmos valores.
+// Cada semana tem dois documentos livres (em branco, com formatação) e o quadro "Coleta de dados", calculado do CRM:
+//   's_AAAA-MM-DD'             → semana: { tipo: 'sprint', inicio, fim, dados: { auto, manual, atualizado_em } }
+//   'doc_AAAA-MM-DD_sprint'    → documento da sprint:        { tipo: 'doc', sprint, parte: 'sprint', html, editado_por }
+//   'doc_AAAA-MM-DD_retro'     → documento da retrospectiva: { tipo: 'doc', sprint, parte: 'retro',  html, editado_por }
+// Documentos ficam em registros separados da semana: editar a retrospectiva não sobrescreve a sprint (e vice-versa).
+// O HTML é sempre limpo (sanitizar) antes de salvar e antes de exibir.
 (() => {
   if (window.SEM_ACESSO) return;
 
   const TABELA = 'sprints';
-  const FIB = [1, 2, 3, 5, 8, 13, 21];
-  const AREAS_KR = ['Comercial', 'Atendimento', 'CS', 'MKT', 'Operações', 'Financeiro'];
   const canEdit = Store.podeEditar(TABELA);
   const lerCRM = Store.podeLer('crm');
   const eu = (() => { const p = Store.perfil(); return p.nome || (Store.getSession()?.email || '').split('@')[0] || 'Equipe'; })();
 
   let registros = [];
-  let atualId = null;
   let crm = [];
-  const timers = {};
-  let digitando = false;
+  const abertas = new Set();          // semanas abertas
+  const partesFechadas = new Set();   // 'AAAA-MM-DD_retro' etc.
+  const pendentes = {};               // docId → timer de salvamento
+  const base = {};                    // docId → { updated_at, html } da última versão vista do servidor
 
   // ---------- datas ----------
   const segunda = iso => { const d = dates.toDate(iso); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return dates.toISO(d); };
   const ddmm = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '—';
   const tituloSprint = s => `Sprint da Semana (${ddmm(s.inicio)} - ${ddmm(s.fim)})`;
   const local = iso => iso ? dates.toISO(new Date(iso)) : null;
-
   const sprints = () => registros.filter(r => r.tipo === 'sprint').sort((a, b) => b.inicio.localeCompare(a.inicio));
-  const krsDe = id => registros.filter(r => r.tipo === 'kr' && r.sprint === id)
-    .sort((a, b) => (a.area || '').localeCompare(b.area || '', 'pt-BR') || (Number(a.prioridade) || 99) - (Number(b.prioridade) || 99) || (a.criado_em || '').localeCompare(b.criado_em || ''));
-  const anterior = s => sprints().find(x => x.inicio < s.inicio) || null;
-  const pontos = krs => ({ feitos: krs.filter(k => k.concluido).reduce((a, k) => a + (Number(k.esforco) || 0), 0), total: krs.reduce((a, k) => a + (Number(k.esforco) || 0), 0) });
+  const docId = (s, parte) => `doc_${s.inicio}_${parte}`;
+  const docDe = (s, parte) => registros.find(r => r.id === docId(s, parte));
 
-  // ---------- salvar (com atraso, por registro) ----------
-  function salvar(rec, imediato = false) {
-    rec.atualizado_por = eu;
-    clearTimeout(timers[rec.id]);
-    estado('Salvando…');
-    const go = async () => {
-      delete timers[rec.id];
-      try { await Store.save(TABELA, rec); if (!Object.keys(timers).length) estado('Salvo'); }
-      catch (e) { estado('Erro ao salvar'); toast(e.message, 'error'); }
+  // ---------- limpeza do HTML (colado do ClickUp, Word, Google Docs…) ----------
+  const PERMITIDAS = new Set(['P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4',
+    'BLOCKQUOTE', 'HR', 'A', 'DIV', 'SPAN', 'CODE', 'PRE', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH']);
+  const REMOVER = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'TITLE', 'SVG', 'MATH', 'FORM', 'INPUT', 'BUTTON',
+    'TEXTAREA', 'SELECT', 'IMG', 'VIDEO', 'AUDIO', 'NOSCRIPT', 'TEMPLATE']);
+  function sanitizar(html) {
+    const doc = new DOMParser().parseFromString(`<body>${html || ''}</body>`, 'text/html');
+    const limpar = el => {
+      [...el.children].forEach(c => {
+        if (REMOVER.has(c.tagName)) return c.remove();
+        limpar(c);
+        if (!PERMITIDAS.has(c.tagName)) { c.replaceWith(...c.childNodes); return; }
+        [...c.attributes].forEach(a => {
+          const n = a.name.toLowerCase();
+          const ok = (c.tagName === 'A' && n === 'href' && /^(https?:|mailto:)/i.test(a.value.trim()))
+            || (c.tagName === 'UL' && n === 'class' && a.value === 'check')
+            || (c.tagName === 'LI' && n === 'data-done' && /^(true|false)$/.test(a.value))
+            || (['TD', 'TH'].includes(c.tagName) && ['colspan', 'rowspan'].includes(n) && /^\d+$/.test(a.value));
+          if (!ok) c.removeAttribute(a.name);
+        });
+        if (c.tagName === 'A') { c.setAttribute('target', '_blank'); c.setAttribute('rel', 'noopener noreferrer'); }
+      });
     };
-    if (imediato) return go();
-    timers[rec.id] = setTimeout(go, 600);
+    limpar(doc.body);
+    return doc.body.innerHTML;
   }
-  const estado = t => { const el = $('#estado'); if (el) el.textContent = t; };
+  const temTexto = html => !!(html && sanitizar(html).replace(/<[^>]*>/g, '').replace(/&nbsp;|\s/g, ''));
+
+  // conteúdo do formato anterior (KRs e campos da retrospectiva) aparece como texto do documento
+  function legado(s, parte) {
+    if (parte === 'retro') {
+      const r = s.retro || {};
+      return [['✅ O que funcionou', r.positivos], ['⚠️ O que pode melhorar', r.melhorar], ['🎯 Ações para esta semana', r.acoes]]
+        .filter(([, v]) => v).map(([t, v]) => `<h3>${esc(t)}</h3><p>${esc(v).replace(/\n/g, '<br>')}</p>`).join('');
+    }
+    const krs = registros.filter(r => r.tipo === 'kr' && r.sprint === s.id);
+    return krs.map(k => `<p><b>🦾 KR's - ${esc(k.area || '—')} | ${esc(k.titulo || '—')}</b></p><ul>
+      <li>🏆 ${esc(k.prioridade ?? '—')}</li><li>💪 ${esc(k.esforco ?? '—')}</li><li>👤 ${esc(k.responsavel || '—')}</li><li>📅 ${esc(ddmm(k.prazo))}</li></ul>
+      ${(k.tarefas || []).length ? `<ul class="check">${k.tarefas.map(t => `<li data-done="${!!t.feito}">${esc(t.texto || '')}${t.data ? ` (${ddmm(t.data)})` : ''}</li>`).join('')}</ul>` : ''}`).join('<hr>');
+  }
+  const htmlDe = (s, parte) => { const d = docDe(s, parte); return d ? d.html : legado(s, parte); };
 
   // ---------- coleta de dados a partir do CRM ----------
   const LINHAS = () => [
@@ -77,17 +101,11 @@
     const passivos = novos.filter(d => !isPA(d));
     const fechados = crm.filter(d => (d.historico || []).some(h => h.etapa === 'Negócio fechado' && naSemana(h.em)));
     const out = {
-      leads_pa: novos.filter(isPA).length,
-      leads_passivos: passivos.length,
-      ligacoes: tipo('Ligação').length,
-      cold_realizadas: tipo('Cold call').length,
+      leads_pa: novos.filter(isPA).length, leads_passivos: passivos.length,
+      ligacoes: tipo('Ligação').length, cold_realizadas: tipo('Cold call').length,
       cold_atendidas: tipo('Cold call').filter(t => t.resultado === 'Atendida').length,
-      porta_a_porta: tipo('Porta a porta').length,
-      visitas_reunioes: tipo('Visita', 'Reunião').length,
-      contratos: fechados.length,
-      mql_novos: passivos.length,
-      sql_novos: passivos.length,
-      leads_hub: {},
+      porta_a_porta: tipo('Porta a porta').length, visitas_reunioes: tipo('Visita', 'Reunião').length,
+      contratos: fechados.length, mql_novos: passivos.length, sql_novos: passivos.length, leads_hub: {},
     };
     HUBS.forEach(h => {
       const ds = fechados.filter(d => norm(d.empresa?.hub) === norm(h));
@@ -101,128 +119,18 @@
     return out;
   }
 
-  // quem lê o CRM atualiza a cópia dos números guardada na sprint
-  function sincronizarDados(s) {
+  async function salvarSemana(s) {
+    const salvo = await Store.save(TABELA, s);
+    s.updated_at = salvo.updated_at;
+  }
+
+  // quem lê o CRM guarda uma cópia dos números na semana, para todas as áreas verem os mesmos valores
+  async function sincronizarDados(s) {
     if (!lerCRM) return;
     const auto = calcularDados(s);
     if (JSON.stringify(auto) === JSON.stringify(s.dados?.auto)) return;
     s.dados = { ...(s.dados || {}), auto, atualizado_em: new Date().toISOString() };
-    if (canEdit) salvar(s);
-  }
-
-  // ---------- telas ----------
-  function render() {
-    const lista = sprints();
-    const sel = $('#sel-sprint');
-    sel.innerHTML = lista.map(s => `<option value="${esc(s.id)}" ${s.id === atualId ? 'selected' : ''}>${esc(tituloSprint(s))}</option>`).join('')
-      || '<option value="">Nenhuma sprint ainda</option>';
-    const s = lista.find(x => x.id === atualId);
-    const i = lista.indexOf(s);
-    $('#ant').disabled = !s || i === lista.length - 1;
-    $('#prox').disabled = !s || i <= 0;
-    if (!s) {
-      $('#sprint').innerHTML = `<div class="card empty-state"><h2>Nenhuma sprint criada</h2>
-        <p class="muted">Crie a sprint desta semana para registrar os KRs, as tarefas, a retrospectiva e a coleta de dados.</p>
-        ${canEdit ? '<button class="btn primary" id="criar-vazio">+ Criar sprint desta semana</button>' : ''}</div>`;
-      $('#criar-vazio')?.addEventListener('click', novaSprint);
-      return;
-    }
-    sincronizarDados(s);
-    const krs = krsDe(s.id);
-    const p = pontos(krs);
-    const ant = anterior(s);
-    const dis = canEdit ? '' : 'disabled';
-    $('#sprint').innerHTML = `
-      <section class="card sprint-head">
-        <div class="sprint-titulo">
-          <h2>${esc(tituloSprint(s))}</h2>
-          <div class="sprint-datas">
-            <label>Início <input class="input" type="date" data-s="inicio" value="${esc(s.inicio)}" ${dis}></label>
-            <label>Fim <input class="input" type="date" data-s="fim" value="${esc(s.fim)}" ${dis}></label>
-          </div>
-        </div>
-        <div class="sprint-chips">
-          <span class="chip-info big">💪 ${p.feitos}/${p.total} <small>pontos entregues</small></span>
-          <span class="chip-info">🦾 ${krs.filter(k => k.concluido).length}/${krs.length} KRs concluídos</span>
-          <span class="chip-info fib" title="Escala de esforço (Fibonacci)">${FIB.join(', ')}</span>
-          <span class="spacer"></span>
-          <button class="btn ghost small" id="copiar">Copiar texto</button>
-          ${Store.isAdmin() ? '<button class="btn ghost small danger" id="excluir-sprint">Excluir sprint</button>' : ''}
-        </div>
-      </section>
-
-      <section class="card">
-        <h3 class="sec-titulo">🔁 Retrospectiva da semana anterior</h3>
-        ${ant ? retroAnterior(ant) : '<p class="muted small">Não há sprint anterior para comparar.</p>'}
-        <div class="retro-grid">
-          ${[['positivos', '✅ O que funcionou'], ['melhorar', '⚠️ O que pode melhorar'], ['acoes', '🎯 Ações para esta semana']].map(([k, l]) => `
-            <label class="field"><span>${l}</span><textarea class="input" rows="4" data-retro="${k}" ${dis}
-              placeholder="${canEdit ? 'Escreva aqui…' : ''}">${esc(s.retro?.[k] || '')}</textarea></label>`).join('')}
-        </div>
-      </section>
-
-      <section class="krs">
-        <div class="krs-head"><h3 class="sec-titulo">🦾 KRs e tarefas da semana</h3>
-          ${canEdit ? '<button class="btn primary small" id="novo-kr">+ Novo KR</button>' : ''}</div>
-        ${krs.length ? krs.map(krHTML).join('') : '<div class="card muted small">Nenhum KR nesta sprint ainda.</div>'}
-        ${krs.length ? `<div class="krs-total">💪 - ${p.feitos}/${p.total}</div>` : ''}
-        <datalist id="dl-areas">${[...new Set([...AREAS_KR, ...registros.filter(r => r.tipo === 'kr').map(r => r.area).filter(Boolean)])].map(a => `<option value="${esc(a)}">`).join('')}</datalist>
-        <datalist id="dl-resp">${[...new Set(registros.filter(r => r.tipo === 'kr').map(r => r.responsavel).filter(Boolean))].map(a => `<option value="${esc(a)}">`).join('')}</datalist>
-      </section>
-
-      <section class="card table-card coleta">
-        <div class="coleta-head"><h3 class="sec-titulo">📊 Coleta de dados</h3>
-          <span class="muted small">${s.dados?.atualizado_em ? `Calculado do CRM de ${ddmm(s.inicio)} a ${ddmm(s.fim)} · atualizado ${esc(fmt.dateTime(s.dados.atualizado_em))}` : 'Ainda sem números do CRM'}
-          ${lerCRM ? '' : ' · os números são atualizados quando alguém do Comercial abre esta sprint'}</span></div>
-        <div class="table-wrap"><table class="data static">${coletaHTML(s)}</table></div>
-        <p class="muted small coleta-nota"><span class="auto-dot"></span> calculado pela plataforma · digite um valor para corrigir (apague para voltar ao calculado)</p>
-      </section>`;
-    bind(s);
-  }
-
-  function retroAnterior(ant) {
-    const krs = krsDe(ant.id), p = pontos(krs);
-    return `<div class="retro-ant">
-      <div class="retro-ant-head"><b>${esc(tituloSprint(ant))}</b><span>💪 ${p.feitos}/${p.total} pontos</span>
-        <span>🦾 ${krs.filter(k => k.concluido).length}/${krs.length} KRs</span>
-        <button class="link-btn" data-ir="${esc(ant.id)}">abrir</button></div>
-      ${krs.length ? `<ul class="retro-krs">${krs.map(k => {
-        const t = k.tarefas || [], f = t.filter(x => x.feito).length;
-        return `<li class="${k.concluido ? 'ok' : 'pend'}"><span class="st">${k.concluido ? '✓' : '✕'}</span>
-          ${esc(k.area || '—')} | ${esc(k.titulo || 'Sem título')} <span class="muted small">· ${esc(k.responsavel || '—')} · 💪 ${k.esforco || 0}${t.length ? ` · ${f}/${t.length} tarefas` : ''}</span></li>`;
-      }).join('')}</ul>` : ''}
-    </div>`;
-  }
-
-  function krHTML(k) {
-    const dis = canEdit ? '' : 'disabled';
-    const t = k.tarefas || [];
-    const f = t.filter(x => x.feito).length;
-    const atrasado = !k.concluido && k.prazo && k.prazo < dates.today();
-    return `<article class="card kr ${k.concluido ? 'done' : ''}" data-kr="${esc(k.id)}">
-      <div class="kr-head">
-        <span class="kr-ico">🦾</span><span class="kr-pre">KR's -</span>
-        <input class="v kr-area" data-k="area" value="${esc(k.area || '')}" list="dl-areas" placeholder="Área" ${dis}>
-        <span class="kr-sep">|</span>
-        <input class="v kr-titulo" data-k="titulo" value="${esc(k.titulo || '')}" placeholder="Nome do KR" ${dis}>
-        <label class="kr-done"><input type="checkbox" data-k="concluido" ${k.concluido ? 'checked' : ''} ${dis}> Concluído</label>
-        ${canEdit ? '<button class="icon-btn small kr-rm" title="Excluir KR" aria-label="Excluir KR">×</button>' : ''}
-      </div>
-      <div class="kr-props">
-        <label title="Prioridade">🏆 <input class="v num" type="number" min="1" data-k="prioridade" value="${esc(k.prioridade ?? '')}" ${dis}></label>
-        <label title="Esforço (Fibonacci)">💪 <select class="v" data-k="esforco" ${dis}><option value=""></option>${FIB.map(n => `<option ${Number(k.esforco) === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <label title="Responsável">👤 <input class="v" data-k="responsavel" value="${esc(k.responsavel || '')}" list="dl-resp" placeholder="Responsável" ${dis}></label>
-        <label title="Prazo" class="${atrasado ? 'atrasado' : ''}">📅 <input class="v" type="date" data-k="prazo" value="${esc(k.prazo || '')}" ${dis}></label>
-        ${t.length ? `<span class="kr-prog"><span style="width:${Math.round(f / t.length * 100)}%"></span></span><span class="muted small">${f}/${t.length}</span>` : ''}
-      </div>
-      <ul class="kr-tarefas">${t.map(x => `<li class="${x.feito ? 'feito' : ''}" data-t="${esc(x.id)}">
-          <input type="checkbox" data-tf="feito" ${x.feito ? 'checked' : ''} ${dis} aria-label="Concluir tarefa"><span class="play">▶️</span>
-          <input class="v" data-tf="texto" value="${esc(x.texto || '')}" ${dis}>
-          <input class="v data" type="date" data-tf="data" value="${esc(x.data || '')}" ${dis}>
-          ${canEdit ? '<button class="icon-btn small" data-tf-rm title="Remover tarefa" aria-label="Remover tarefa">×</button>' : ''}</li>`).join('')}
-        ${canEdit ? `<li class="nova-tarefa"><span class="play">▶️</span><input class="v" placeholder="Nova tarefa… (Enter para adicionar)" data-nova><input class="v data" type="date" data-nova-data></li>` : ''}
-      </ul>
-    </article>`;
+    if (canEdit) { try { await salvarSemana(s); } catch (e) { toast(e.message, 'error'); } }
   }
 
   function coletaHTML(s) {
@@ -241,167 +149,272 @@
     }).join('')}</tbody>`;
   }
 
-  // ---------- eventos ----------
-  function bind(s) {
-    const box = $('#sprint');
-    $$('[data-s]', box).forEach(i => i.addEventListener('change', () => {
-      if (!i.value) return;
-      if (i.dataset.s === 'inicio' && sprints().some(x => x.id !== s.id && x.inicio === i.value)) { toast('Já existe uma sprint começando nesse dia', 'error'); i.value = s.inicio; return; }
-      s[i.dataset.s] = i.value;
-      if (s.fim < s.inicio) s.fim = dates.addDays(s.inicio, 4);
-      salvar(s, true); render();
+  // ---------- editor de documento ----------
+  const FERRAMENTAS = [
+    ['bold', '<b>N</b>', 'Negrito (⌘B)'], ['italic', '<i>I</i>', 'Itálico (⌘I)'], ['underline', '<u>S</u>', 'Sublinhado (⌘U)'], ['strikeThrough', '<s>T</s>', 'Riscado'],
+    ['|'], ['h2', 'T1', 'Título'], ['h3', 'T2', 'Subtítulo'], ['p', '¶', 'Texto normal'],
+    ['|'], ['insertUnorderedList', '•', 'Lista'], ['insertOrderedList', '1.', 'Lista numerada'], ['checklist', '☑', 'Checklist'],
+    ['|'], ['insertHorizontalRule', '—', 'Linha separadora'], ['link', '🔗', 'Link'], ['removeFormat', '⌫', 'Limpar formatação'],
+  ];
+  function editorHTML(s, parte) {
+    const id = docId(s, parte);
+    const d = docDe(s, parte);
+    const ph = parte === 'sprint' ? 'Escreva ou cole aqui a sprint da semana (KRs, responsáveis, prazos, tarefas…)'
+      : 'Escreva ou cole aqui a retrospectiva da semana (o que funcionou, o que melhorar, ações…)';
+    return `<div class="doc" data-doc="${esc(id)}">
+      ${canEdit ? `<div class="editor-bar" role="toolbar" aria-label="Formatação">${FERRAMENTAS.map(([c, ic, t]) => c === '|' ? '<span class="sep"></span>'
+        : `<button type="button" data-cmd="${c}" title="${t}" aria-label="${t}">${ic}</button>`).join('')}</div>` : ''}
+      <div class="editor" ${canEdit ? 'contenteditable="true"' : ''} data-placeholder="${esc(canEdit ? ph : 'Nada escrito ainda.')}" spellcheck="true"></div>
+      <div class="doc-meta muted small">${d?.editado_por ? `Última edição por ${esc(d.editado_por)} · ${esc(fmt.dateTime(d.updated_at))}` : ''}</div>
+    </div>`;
+  }
+
+  function ligarEditor(box, s, parte) {
+    const id = docId(s, parte);
+    const ed = $('.editor', box);
+    ed.innerHTML = sanitizar(htmlDe(s, parte));
+    if (!base[id]) base[id] = { updated_at: docDe(s, parte)?.updated_at || null, html: docDe(s, parte)?.html || '' };
+    // checklist: clicar na caixinha marca/desmarca
+    ed.addEventListener('click', e => {
+      const li = e.target.closest('ul.check > li');
+      if (!li || !canEdit) return;
+      if (e.clientX - li.getBoundingClientRect().left > 26) return;
+      li.dataset.done = li.dataset.done === 'true' ? 'false' : 'true';
+      agendar(s, parte, ed);
+    });
+    if (!canEdit) return;
+    ed.addEventListener('input', () => agendar(s, parte, ed));
+    ed.addEventListener('paste', e => {
+      const html = e.clipboardData.getData('text/html');
+      const txt = e.clipboardData.getData('text/plain');
+      e.preventDefault();
+      document.execCommand('insertHTML', false, html ? sanitizar(html) : esc(txt).replace(/\n/g, '<br>'));
+    });
+    $$('[data-cmd]', box).forEach(b => b.addEventListener('mousedown', e => {
+      e.preventDefault(); // mantém a seleção no texto
+      const c = b.dataset.cmd;
+      ed.focus();
+      const ulDaSelecao = () => { const n = window.getSelection().anchorNode; return (n?.nodeType === 1 ? n : n?.parentElement)?.closest('ul'); };
+      if (c === 'h2' || c === 'h3' || c === 'p') document.execCommand('formatBlock', false, c);
+      else if (c === 'checklist') {
+        let ul = ulDaSelecao();
+        if (!ul || !ed.contains(ul)) { document.execCommand('insertUnorderedList'); ul = ulDaSelecao(); }
+        if (ul && ed.contains(ul)) {
+          if (ul.classList.contains('check')) { ul.removeAttribute('class'); $$('li', ul).forEach(li => li.removeAttribute('data-done')); }
+          else { ul.className = 'check'; $$(':scope > li', ul).forEach(li => { li.dataset.done = li.dataset.done || 'false'; }); }
+        }
+      } else if (c === 'link') {
+        const url = prompt('Endereço do link (https://…):', 'https://');
+        if (url && /^(https?:\/\/|mailto:)/i.test(url.trim())) document.execCommand('createLink', false, url.trim());
+      } else document.execCommand(c);
+      agendar(s, parte, ed);
     }));
-    $$('[data-retro]', box).forEach(i => i.addEventListener('input', () => { s.retro = { ...(s.retro || {}), [i.dataset.retro]: i.value }; salvar(s); }));
-    $$('[data-m]', box).forEach(i => i.addEventListener('change', () => {
+  }
+
+  function agendar(s, parte, ed) {
+    const id = docId(s, parte);
+    estado('Salvando…');
+    clearTimeout(pendentes[id]);
+    pendentes[id] = setTimeout(() => salvarDoc(s, parte, ed), 1200);
+  }
+
+  async function salvarDoc(s, parte, ed) {
+    const id = docId(s, parte);
+    const html = sanitizar(ed.innerHTML);
+    try {
+      // alguém salvou este documento enquanto você escrevia?
+      const atual = await Store.get(TABELA, id);
+      if (atual && atual.updated_at !== base[id]?.updated_at && atual.html !== base[id]?.html && atual.html !== html) {
+        const manter = await conflito(atual);
+        if (!manter) {
+          registros = [...registros.filter(r => r.id !== id), atual];
+          base[id] = { updated_at: atual.updated_at, html: atual.html };
+          delete pendentes[id];
+          ed.innerHTML = sanitizar(atual.html);
+          estado('Texto atualizado com a versão mais recente');
+          return;
+        }
+      }
+      const salvo = await Store.save(TABELA, { id, tipo: 'doc', sprint: s.id, parte, html, editado_por: eu });
+      registros = [...registros.filter(r => r.id !== id), salvo];
+      base[id] = { updated_at: salvo.updated_at, html };
+      delete pendentes[id];
+      const meta = ed.closest('.doc')?.querySelector('.doc-meta');
+      if (meta) meta.textContent = `Última edição por ${eu} · ${fmt.dateTime(salvo.updated_at)}`;
+      atualizarSelos(s);
+      if (!Object.keys(pendentes).length) estado('Salvo');
+    } catch (e) { estado('Erro ao salvar'); toast(e.message, 'error'); }
+  }
+
+  function conflito(atual) {
+    return new Promise(resolve => {
+      let manter = false;
+      const dlg = openModal({
+        title: 'Outra pessoa editou este documento',
+        body: `<p><b>${esc(atual.editado_por || 'Alguém')}</b> salvou uma versão às ${esc(fmt.dateTime(atual.updated_at))}, enquanto você escrevia.</p>
+          <p class="muted small">Se mantiver o seu texto, a versão da outra pessoa será substituída. Se preferir, copie o seu texto antes de carregar a versão dela.</p>`,
+        actions: [
+          { label: 'Carregar a versão dela', cls: 'ghost' },
+          { label: 'Manter o meu texto', cls: 'primary', onClick: () => { manter = true; } },
+        ],
+      });
+      dlg.addEventListener('close', () => resolve(manter));
+    });
+  }
+  const estado = t => { const el = $('#estado'); if (el) el.textContent = t; };
+
+  // ---------- lista de semanas ----------
+  function selos(s) {
+    const sp = temTexto(htmlDe(s, 'sprint')), rt = temTexto(htmlDe(s, 'retro'));
+    return `<span class="selo ${sp ? 'ok' : ''}">${sp ? '✓' : '○'} Sprint</span><span class="selo ${rt ? 'ok' : ''}">${rt ? '✓' : '○'} Retrospectiva</span>`;
+  }
+  function atualizarSelos(s) { const el = $(`.semana[data-id="${s.id}"] .selos`); if (el) el.innerHTML = selos(s); }
+
+  function render() {
+    const lista = sprints();
+    const hoje = dates.today();
+    const prox = proximoInicio();
+    const btn = $('#nova-sprint');
+    if (btn?.tagName === 'BUTTON') btn.textContent = `+ Adicionar sprint da semana seguinte (${ddmm(prox)} - ${ddmm(dates.addDays(prox, 4))})`;
+    if (!lista.length) {
+      $('#semanas').innerHTML = `<div class="card empty-state"><h2>Nenhuma sprint ainda</h2>
+        <p class="muted">${canEdit ? 'Use o botão acima para criar a primeira sprint.' : 'Assim que a equipe criar a primeira sprint, ela aparece aqui.'}</p></div>`;
+      return;
+    }
+    $('#semanas').innerHTML = lista.map(s => {
+      const atual = s.inicio <= hoje && s.fim >= hoje;
+      return `<details class="semana card" data-id="${esc(s.id)}" ${abertas.has(s.id) ? 'open' : ''}>
+        <summary>
+          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+          <span class="semana-titulo">${esc(tituloSprint(s))}</span>
+          ${atual ? '<span class="badge ok">Semana atual</span>' : s.inicio > hoje ? '<span class="badge neutral">Próxima</span>' : ''}
+          <span class="selos">${selos(s)}</span>
+          ${Store.isAdmin() ? '<button type="button" class="icon-btn small excluir-semana" title="Excluir esta semana" aria-label="Excluir esta semana">×</button>' : ''}
+        </summary>
+        <div class="semana-corpo"></div>
+      </details>`;
+    }).join('');
+    $$('.semana').forEach(el => {
+      const s = registros.find(r => r.id === el.dataset.id);
+      if (el.open) corpo(el, s);
+      el.addEventListener('toggle', () => {
+        if (el.open) { abertas.add(s.id); if (!$('.parte', el)) corpo(el, s); } else abertas.delete(s.id);
+      });
+      $('.excluir-semana', el)?.addEventListener('click', e => { e.preventDefault(); excluirSemana(s); });
+    });
+  }
+
+  function corpo(el, s) {
+    sincronizarDados(s);
+    const parte = (p, titulo, extra = '') => `<details class="parte" data-parte="${p}" ${partesFechadas.has(`${s.inicio}_${p}`) ? '' : 'open'}>
+      <summary><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>${titulo}</summary>
+      <div class="parte-corpo">${editorHTML(s, p)}${extra}</div></details>`;
+    $('.semana-corpo', el).innerHTML =
+      parte('sprint', '📋 Sprint', `
+        <div class="coleta">
+          <div class="coleta-head"><h3 class="sec-titulo">📊 Coleta de dados</h3>
+            <span class="muted small">${s.dados?.atualizado_em ? `Preenchido pela plataforma (CRM) de ${ddmm(s.inicio)} a ${ddmm(s.fim)} · atualizado ${esc(fmt.dateTime(s.dados.atualizado_em))}` : 'Ainda sem números calculados'}
+            ${lerCRM ? '' : ' · os números são atualizados quando alguém do Comercial abre esta semana'}</span></div>
+          <div class="table-wrap"><table class="data static">${coletaHTML(s)}</table></div>
+          <p class="muted small coleta-nota"><span class="auto-dot"></span> preenchido automaticamente · digite um valor para corrigir (apague para voltar ao automático)</p>
+        </div>`)
+      + parte('retro', '🔁 Retrospectiva');
+    ['sprint', 'retro'].forEach(p => ligarEditor($(`.parte[data-parte="${p}"]`, el), s, p));
+    $$('.parte', el).forEach(pe => pe.addEventListener('toggle', () => {
+      const k = `${s.inicio}_${pe.dataset.parte}`;
+      if (pe.open) partesFechadas.delete(k); else partesFechadas.add(k);
+    }));
+    $$('[data-m]', el).forEach(i => i.addEventListener('change', async () => {
       const manual = { ...(s.dados?.manual || {}) };
       const v = parse.num(i.value);
       if (v === null) delete manual[i.dataset.m]; else manual[i.dataset.m] = v;
       s.dados = { ...(s.dados || {}), manual };
-      salvar(s, true); render();
+      try { await salvarSemana(s); estado('Salvo'); } catch (e) { toast(e.message, 'error'); }
+      const td = i.closest('td');
+      const auto = s.dados?.auto?.[i.dataset.m];
+      td.classList.toggle('auto', v === null && !isBlank(auto));
+      const dot = $('.auto-dot', td);
+      if (v === null && !isBlank(auto) && !dot) $('.cv', td).insertAdjacentHTML('afterbegin', '<span class="auto-dot" title="Calculado pela plataforma"></span>');
+      if (v !== null) dot?.remove();
     }));
-    $('[data-ir]', box)?.addEventListener('click', e => { atualId = e.target.dataset.ir; render(); });
-    $('#novo-kr', box)?.addEventListener('click', () => novoKR(s));
-    $('#copiar', box).addEventListener('click', () => copiar(s));
-    $('#excluir-sprint', box)?.addEventListener('click', () => excluirSprint(s));
+  }
 
-    $$('.kr', box).forEach(el => {
-      const k = registros.find(r => r.id === el.dataset.kr);
-      $$('[data-k]', el).forEach(i => i.addEventListener(i.type === 'checkbox' || i.tagName === 'SELECT' || i.type === 'date' ? 'change' : 'input', () => {
-        const c = i.dataset.k;
-        k[c] = i.type === 'checkbox' ? i.checked : c === 'esforco' || c === 'prioridade' ? parse.num(i.value) : i.value.trim() || null;
-        // status, esforço e prazo mudam os totais: salva e redesenha na hora; textos salvam quando a pessoa para de digitar
-        if (['concluido', 'esforco', 'prazo'].includes(c)) { salvar(k, true); render(); } else salvar(k);
-      }));
-      // área e prioridade mudam a ordem dos KRs: reordena ao sair do campo
-      $$('[data-k="area"], [data-k="prioridade"]', el).forEach(i => i.addEventListener('change', () => render()));
-      $('.kr-rm', el)?.addEventListener('click', async () => {
-        if (!confirm(`Excluir o KR "${k.titulo || 'sem título'}" e as tarefas dele?`)) return;
-        try { await Store.remove(TABELA, k.id); registros = registros.filter(r => r.id !== k.id); render(); } catch (e) { toast(e.message, 'error'); }
-      });
-      $$('.kr-tarefas li[data-t]', el).forEach(li => {
-        const t = (k.tarefas || []).find(x => x.id === li.dataset.t);
-        $$('[data-tf]', li).forEach(i => i.addEventListener(i.type === 'checkbox' || i.type === 'date' ? 'change' : 'input', () => {
-          t[i.dataset.tf] = i.type === 'checkbox' ? i.checked : i.value.trim() || null;
-          if (i.type === 'checkbox') { salvar(k, true); render(); } else salvar(k);
-        }));
-        $('[data-tf-rm]', li)?.addEventListener('click', () => { k.tarefas = k.tarefas.filter(x => x.id !== t.id); salvar(k, true); render(); });
-      });
-      const nova = $('[data-nova]', el);
-      nova?.addEventListener('keydown', e => {
-        if (e.key !== 'Enter' || !nova.value.trim()) return;
-        e.preventDefault();
-        k.tarefas = [...(k.tarefas || []), { id: Store.uid(), texto: nova.value.trim(), data: $('[data-nova-data]', el).value || null, feito: false }];
-        salvar(k, true); render();
-        setTimeout(() => $(`.kr[data-kr="${k.id}"] [data-nova]`)?.focus(), 30);
-      });
-    });
+  // ---------- criar / excluir ----------
+  // semana seguinte à última sprint; se a equipe pulou semanas, começa na semana atual
+  function proximoInicio() {
+    const ultima = sprints()[0];
+    const atual = segunda(dates.today());
+    const candidata = ultima ? dates.addDays(ultima.inicio, 7) : atual;
+    return candidata < atual ? atual : candidata;
   }
 
   async function novaSprint() {
-    const hoje = segunda(dates.today());
-    const inicio = sprints().some(x => x.inicio === hoje) ? dates.addDays(hoje, 7) : hoje;
-    const ant = sprints().find(x => x.inicio < inicio);
-    const pend = ant ? krsDe(ant.id).filter(k => !k.concluido) : [];
-    openModal({
-      title: 'Nova sprint',
-      body: `<div class="form-grid">
-        <label class="field"><span>Início</span><input class="input" type="date" name="inicio" value="${inicio}"></label>
-        <label class="field"><span>Fim</span><input class="input" type="date" name="fim" value="${dates.addDays(inicio, 4)}"></label>
-        ${pend.length ? `<label class="check wide"><input type="checkbox" name="trazer" checked> Trazer os ${pend.length} KR(s) não concluído(s) da ${esc(tituloSprint(ant))}, com as tarefas pendentes</label>` : ''}
-      </div>`,
-      actions: [
-        { label: 'Cancelar', cls: 'ghost' },
-        { label: 'Criar sprint', cls: 'primary', onClick: async dl => {
-          const ini = $('[name=inicio]', dl).value, fim = $('[name=fim]', dl).value || dates.addDays(ini, 4);
-          if (!ini) throw new Error('Informe a data de início');
-          if (sprints().some(x => x.inicio === ini)) throw new Error('Já existe uma sprint começando nesse dia');
-          const s = { id: 's_' + ini, tipo: 'sprint', inicio: ini, fim: fim < ini ? dates.addDays(ini, 4) : fim, retro: {}, dados: {}, criado_em: new Date().toISOString(), criado_por: eu };
-          const novos = [s];
-          if ($('[name=trazer]', dl)?.checked) pend.forEach(k => novos.push({
-            ...structuredClone(k), id: 'kr_' + Store.uid(), sprint: s.id, concluido: false, criado_em: new Date().toISOString(),
-            tarefas: (k.tarefas || []).filter(t => !t.feito).map(t => ({ ...t, id: Store.uid() })), veio_de: k.id,
-          }));
-          await Store.saveMany(TABELA, novos);
-          registros.push(...novos.map(r => ({ ...r })));
-          atualId = s.id;
-          render();
-          toast('Sprint criada', 'ok');
-        } },
-      ],
-    });
-  }
-
-  async function novoKR(s) {
-    const k = { id: 'kr_' + Store.uid(), tipo: 'kr', sprint: s.id, area: '', titulo: '', prioridade: null, esforco: null, responsavel: '', prazo: s.fim, concluido: false, tarefas: [], criado_em: new Date().toISOString() };
-    registros.push(k);
-    await salvar(k, true);
-    render();
-    $(`.kr[data-kr="${k.id}"] .kr-area`)?.focus();
-  }
-
-  async function excluirSprint(s) {
-    const krs = krsDe(s.id);
-    if (!confirm(`Excluir a ${tituloSprint(s)} e os ${krs.length} KR(s) dela? Isso não pode ser desfeito.`)) return;
+    const inicio = proximoInicio();
+    const s = { id: 's_' + inicio, tipo: 'sprint', inicio, fim: dates.addDays(inicio, 4), dados: {}, criado_em: new Date().toISOString(), criado_por: eu };
     try {
-      for (const r of [...krs, s]) await Store.remove(TABELA, r.id);
-      registros = registros.filter(r => r.id !== s.id && r.sprint !== s.id);
-      atualId = sprints()[0]?.id || null;
+      await salvarSemana(s);
+      registros.push(s);
+      abertas.clear();
+      abertas.add(s.id);
       render();
-      toast('Sprint excluída');
+      toast(`${tituloSprint(s)} criada`, 'ok');
+      $(`.semana[data-id="${s.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) { toast(e.message, 'error'); }
   }
 
-  // texto no mesmo formato do documento da sprint (para colar no ClickUp, WhatsApp…)
-  async function copiar(s) {
-    const krs = krsDe(s.id), p = pontos(krs);
-    const auto = s.dados?.auto || {}, manual = s.dados?.manual || {};
-    const L = [tituloSprint(s), '', FIB.join(', '), ''];
-    let area = null;
-    krs.forEach(k => {
-      if (area !== null && k.area !== area) L.push('-'.repeat(50), '');
-      area = k.area;
-      L.push(`🦾 KR's - ${k.area || '—'} | ${k.titulo || '—'}${k.concluido ? ' ✅' : ''}`,
-        `    🏆 ${k.prioridade ?? '—'}`, `    💪 ${k.esforco ?? '—'}`, `    👤 ${k.responsavel || '—'}`, `    📅 ${ddmm(k.prazo)}`,
-        ...(k.tarefas || []).map(t => `    ${t.feito ? '✅' : '▶️'} ${t.texto || ''}${t.data ? ` (${ddmm(t.data)})` : ''}`), '');
-    });
-    L.push(`    💪 - ${p.feitos}/${p.total}`, '-'.repeat(50), '', 'Coleta de Dados');
-    LINHAS().forEach(l => {
-      if (l.grupo) return L.push('', l.grupo);
-      const v = isBlank(manual[l.k]) ? auto[l.k] : manual[l.k];
-      L.push(`${l.label}: ${isBlank(v) ? '—' : l.moeda ? fmt.money(v) : v}`);
-    });
-    const r = s.retro || {};
-    if (r.positivos || r.melhorar || r.acoes) L.push('', 'Retrospectiva', `✅ ${r.positivos || '—'}`, `⚠️ ${r.melhorar || '—'}`, `🎯 ${r.acoes || '—'}`);
-    const txt = L.join('\n');
-    try { await navigator.clipboard.writeText(txt); toast('Texto da sprint copiado', 'ok'); }
-    catch { openModal({ title: 'Copie o texto', body: `<textarea class="input mono" rows="16" readonly>${esc(txt)}</textarea>`, actions: [{ label: 'Fechar', cls: 'ghost' }] }); }
+  async function excluirSemana(s) {
+    if (!confirm(`Excluir a ${tituloSprint(s)} com a sprint, a retrospectiva e a coleta de dados? Isso não pode ser desfeito.`)) return;
+    try {
+      const ids = registros.filter(r => r.id === s.id || r.sprint === s.id).map(r => r.id);
+      for (const id of ids) await Store.remove(TABELA, id);
+      registros = registros.filter(r => !ids.includes(r.id));
+      render();
+      toast('Semana excluída');
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   // ---------- carregar ----------
-  async function carregar(manterSelecao = true) {
+  async function carregar(primeira = false) {
     try {
       const [regs, deals] = await Promise.all([Store.list(TABELA), lerCRM ? Store.list('crm').catch(() => []) : []]);
-      // não perde o que está sendo digitado (registros com salvamento pendente ficam com a versão local)
-      const pend = new Set(Object.keys(timers));
-      registros = [...regs.filter(r => !pend.has(r.id)), ...registros.filter(r => pend.has(r.id))];
       crm = deals;
+      if (primeira) {
+        registros = regs;
+        const hoje = dates.today();
+        const lista = sprints();
+        const atual = lista.find(s => s.inicio <= hoje && s.fim >= hoje) || lista[0];
+        if (atual) abertas.add(atual.id);
+        render();
+        return;
+      }
+      // atualização periódica: não mexe no documento que está sendo editado aqui
+      const focado = document.activeElement?.closest?.('.doc')?.dataset.doc;
+      const emEdicao = id => id === focado || !!pendentes[id];
+      const mudou = regs.filter(r => { const a = registros.find(x => x.id === r.id); return !a || a.updated_at !== r.updated_at; });
+      const sumiu = registros.some(r => !regs.some(x => x.id === r.id) && !emEdicao(r.id));
+      registros = [...regs.filter(r => !emEdicao(r.id)), ...registros.filter(r => emEdicao(r.id))];
+      if (sumiu || mudou.some(r => r.tipo === 'sprint')) {
+        if (!focado && !Object.keys(pendentes).length) render();
+        return;
+      }
+      mudou.filter(r => r.tipo === 'doc' && !emEdicao(r.id)).forEach(r => {
+        const ed = $(`.doc[data-doc="${r.id}"] .editor`);
+        if (ed) {
+          ed.innerHTML = sanitizar(r.html);
+          base[r.id] = { updated_at: r.updated_at, html: r.html };
+          const meta = ed.closest('.doc').querySelector('.doc-meta');
+          if (meta) meta.textContent = `Última edição por ${r.editado_por || '—'} · ${fmt.dateTime(r.updated_at)}`;
+        }
+        const s = registros.find(x => x.id === r.sprint);
+        if (s) atualizarSelos(s);
+      });
     } catch (e) { toast('Erro ao carregar as sprints: ' + e.message, 'error'); }
-    const lista = sprints();
-    if (!manterSelecao || !lista.some(s => s.id === atualId)) {
-      const hoje = dates.today();
-      atualId = (lista.find(s => s.inicio <= hoje && s.fim >= hoje) || lista[0])?.id || null;
-    }
-    render();
   }
 
-  $('#sprint').addEventListener('focusin', () => { digitando = true; });
-  $('#sprint').addEventListener('focusout', () => { digitando = false; });
-  $('#sel-sprint').addEventListener('change', e => { atualId = e.target.value; render(); });
-  $('#ant').addEventListener('click', () => { const l = sprints(), i = l.findIndex(s => s.id === atualId); if (l[i + 1]) { atualId = l[i + 1].id; render(); } });
-  $('#prox').addEventListener('click', () => { const l = sprints(), i = l.findIndex(s => s.id === atualId); if (i > 0) { atualId = l[i - 1].id; render(); } });
   if (canEdit) $('#nova-sprint').addEventListener('click', novaSprint);
   else $('#nova-sprint').replaceWith(Object.assign(document.createElement('span'), { className: 'badge neutral', textContent: 'Somente visualização' }));
-  // atualizações feitas por outras pessoas aparecem sozinhas
-  setInterval(() => { if (!digitando && !Object.keys(timers).length && !document.hidden && !document.querySelector('dialog[open]')) carregar(); }, 30000);
-  carregar(false);
+  // edições de outras pessoas aparecem sozinhas
+  setInterval(() => { if (!document.hidden && !document.querySelector('dialog[open]')) carregar(); }, 30000);
+  window.addEventListener('beforeunload', e => { if (Object.keys(pendentes).length) { e.preventDefault(); e.returnValue = ''; } });
+  carregar(true);
 })();
