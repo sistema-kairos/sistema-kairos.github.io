@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3c52">
+  <title>Dashboard MKT · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202610092300">
+</head>
+<body data-page="dash-mkt">
+  <main class="content">
+    <header class="page-head">
+      <div><h1>Dashboard MKT</h1><p>Funil, mídia paga, e-mail e leads por canal</p></div>
+    </header>
+    <div class="filters">
+      <label class="mkt-periodo"><span class="muted small">Período</span><select class="input" id="periodo"></select></label>
+      <span class="spacer"></span>
+      <a class="btn ghost small" href="indicadores.html?area=mkt">Lançar valores em Indicadores</a>
+    </div>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lime">Funil</span><h2>Visitantes, leads e vendas</h2></div>
+      <div class="kpis main" id="k-funil"></div>
+    </section>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lilac">Mídia</span><h2>Custos e retorno da mídia paga</h2></div>
+      <div class="kpis main" id="k-midia"></div>
+    </section>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lime">E-mail</span><h2>E-mail marketing</h2></div>
+      <div class="kpis main" id="k-email"></div>
+    </section>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lilac">Canais</span><h2>Leads por canal</h2></div>
+      <div class="charts">
+        <div class="card"><h3>Leads por canal no período</h3><div class="chart-box"><canvas id="c-canais"></canvas></div></div>
+        <div class="card"><h3>Leads por mês e canal</h3><div class="chart-box"><canvas id="c-evolucao"></canvas></div></div>
+      </div>
+      <div class="card table-card">
+        <div class="table-wrap"><table class="data static"><thead><tr>
+          <th>Canal (fonte no CRM)</th><th class="num">Leads</th><th class="num">Vendas</th><th class="num">Conversão</th><th class="num">Receita</th>
+        </tr></thead><tbody id="t-canais"></tbody></table></div>
+      </div>
+      <p class="muted small" id="f-info"></p>
+    </section>
+  </main>
+  <script src="config.js?v=202610092300"></script>
+  <script src="store.js?v=202610092300"></script>
+  <script>window.IND_AREA = 'MKT'; window.IND_MODO = 'dashboard';</script>
+  <script src="common.js?v=202610092300"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="dash.js?v=202610092300"></script>
+  <script src="indicadores.js?v=202610092300"></script>
+</body>
+</html>

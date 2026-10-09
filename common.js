@@ -161,6 +161,7 @@ const NAV = [
   ] },
   { group: 'MKT', area: 'MKT', items: [
     { page: 'leads', href: 'leads.html', label: 'Leads do formulário' },
+    { page: 'dash-mkt', href: 'dashboard-mkt.html', label: 'Dashboard MKT' },
     { page: 'ind-mkt', href: 'indicadores.html?area=mkt', label: 'Indicadores' },
   ] },
   { group: 'Sistema', items: [

@@ -154,7 +154,7 @@ const Store = (() => {
   // ---------- permissões (espelham as regras do supabase-schema.sql) ----------
   // papel: Administrador | Utilizador | Espectador; area: Comercial | CS | MKT | Todas as áreas
   const AREA_DA_TABELA = { comercial: 'Comercial', crm: 'Comercial', cs: 'CS', leads: 'MKT', perfis: 'admin',
-    ind_comercial: 'Comercial', ind_cs: 'CS', ind_mkt: 'MKT', margem: 'admin' };
+    ind_comercial: 'Comercial', ind_cs: 'CS', ind_mkt: 'MKT', visitas: 'MKT', margem: 'admin' };
   const areaDe = t => AREA_DA_TABELA[t] || 'geral';
 
   // sem Supabase (modo local) ou antes de ativar as permissões, todos são administradores
@@ -187,7 +187,8 @@ const Store = (() => {
     if (p.papel === 'Administrador' || a === 'geral') return true;
     if (a === 'admin' || !p.papel) return false;
     if (p.papel === 'Espectador' && (!p.area || p.area === 'Todas as áreas')) return true;
-    return p.area === a || (['Comercial', 'CS'].includes(p.area) && ['comercial', 'cs'].includes(t));
+    return p.area === a || (['Comercial', 'CS'].includes(p.area) && ['comercial', 'cs'].includes(t))
+      || (p.area === 'MKT' && t === 'crm');   // Marketing consulta o CRM (leads por canal, vendas)
   }
   function podeEditar(t) {
     const p = perfil();

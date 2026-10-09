@@ -731,3 +731,9 @@ details[open] > summary > .chev { transform: rotate(90deg); }
   .mg-abas { width: 100%; }
   .mg-aba { flex: 1; padding: 8px 10px; }
 }
+
+/* ---------- Dashboard MKT ---------- */
+.kpi .value .good { color: var(--good-text); }
+.kpi .value .bad { color: var(--critical-text); }
+.ger-inicio { max-width: 340px; margin: 4px 0 12px; }
+.mkt-periodo { display: flex; align-items: center; gap: 8px; }

@@ -167,8 +167,8 @@
     <button id="next" aria-label="Próxima pergunta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
   </div>
 
-  <script src="config.js?v=202610092100"></script>
-  <script src="store.js?v=202610092100"></script>
+  <script src="config.js?v=202610092300"></script>
+  <script src="store.js?v=202610092300"></script>
   <script>
     const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
     const ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
@@ -216,6 +216,20 @@
     const answers = {};
     const params = new URLSearchParams(location.search);
     ['utm_source', 'utm_medium', 'utm_campaign'].forEach(k => { if (params.get(k)) answers[k] = params.get(k); });
+
+    // visitantes (indicador de MKT): conta este navegador uma vez por dia
+    (() => {
+      try {
+        const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+        if (!Store.isRemote() || localStorage.getItem('orion_visita') === hoje) return;
+        const s = Store.settings();
+        fetch(`${s.supabaseUrl}/rest/v1/rpc/registrar_visita`, {
+          method: 'POST', keepalive: true,
+          headers: { apikey: s.supabaseAnonKey, Authorization: `Bearer ${s.supabaseAnonKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pagina: 'formulario' }),
+        }).then(r => { if (r.ok) localStorage.setItem('orion_visita', hoje); }).catch(() => {});
+      } catch { /* sem localStorage: não conta, mas o formulário segue normal */ }
+    })();
 
     const stage = document.getElementById('stage');
     const visible = () => STEPS.filter(s => !s.skip || !s.skip(answers));
