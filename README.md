@@ -178,3 +178,12 @@ Em **Sistema → Calculadora de margem**, organizada em três abas:
 - **⚙️ Premissas:** os custos que valem para todos os planos do cenário. Você informa o custo total e a base de rateio, e o sistema calcula o custo unitário.
 
 Há vários **cenários** (por exemplo, um por HUB). Os dados ficam na tabela `margem`, que só administradores leem e alteram.
+
+## Teste diário do formulário (Status dos Sistemas)
+
+Todo dia às 9h (horário de Brasília) o próprio Supabase (pg_cron + pg_net) testa o formulário de leads:
+baixa a página publicada, confere se o `config.js` tem as chaves do Supabase e envia uma resposta de teste
+pela mesma API do formulário (`enviar_lead`). A resposta de teste passa por toda a validação e é gravada e
+desfeita na mesma hora, então **não entra em Leads, no CRM nem nos indicadores**. O resultado aparece no card
+"Formulário de leads" da aba Status dos Sistemas, que tem também o botão "Testar agora" (só administradores).
+Detalhes em `supabase/migrations/20261009_04_teste_diario_formulario.sql`.

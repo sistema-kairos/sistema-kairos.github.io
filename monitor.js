@@ -6,21 +6,28 @@
 //   alcance   – só verifica se a URL responde (modo no-cors; não lê o conteúdo, funciona com qualquer site)
 //   json      – lê um campo de uma resposta JSON e compara com o valor esperado (ex.: campo "aberto" = true)
 //   heartbeat – o sistema externo envia um "sinal de vida" periodicamente; se passar de X minutos sem sinal = fora
+//   teste     – teste diário do formulário de leads, feito pelo próprio banco às 9h (ver supabase-schema.sql);
+//               o resultado fica em heartbeat/formulario = { at, ok, etapas: { pagina, config, envio }, ultimo_ok }
 const Monitor = (() => {
+  const FORMULARIO = { id: 'formulario', nome: 'Formulário de leads', grupo: 'Formulário', modo: 'teste', url: '', campo: '', esperado: '', heartbeatMin: 26 * 60 };
   const DEFAULT = {
     intervalo: 60,
     servicos: [
       ...HUBS.map(h => ({ id: 'hub_' + norm(h), nome: 'HUB ' + h, grupo: 'Hubs', modo: 'manual', url: '', campo: '', esperado: '', heartbeatMin: 10 })),
       { id: 'chatpro', nome: 'ChatPro', grupo: 'Integrações', modo: 'manual', url: '', campo: '', esperado: '', heartbeatMin: 10 },
       { id: 'push_pedidos', nome: 'Push de pedidos', grupo: 'Integrações', modo: 'heartbeat', url: '', campo: '', esperado: '', heartbeatMin: 15 },
+      FORMULARIO,
     ],
   };
-  const MODOS = { manual: 'Manual', http: 'HTTP (CORS)', alcance: 'Alcance (no-cors)', json: 'Campo JSON', heartbeat: 'Heartbeat' };
+  const MODOS = { manual: 'Manual', http: 'HTTP (CORS)', alcance: 'Alcance (no-cors)', json: 'Campo JSON', heartbeat: 'Heartbeat', teste: 'Teste diário 9h' };
 
   async function loadConfig() {
     const c = await Store.get('config', 'monitor').catch(() => null);
     if (!c) return structuredClone(DEFAULT);
-    return { intervalo: c.intervalo || DEFAULT.intervalo, servicos: c.servicos?.length ? c.servicos : structuredClone(DEFAULT.servicos) };
+    const servicos = c.servicos?.length ? c.servicos : structuredClone(DEFAULT.servicos);
+    // o teste do formulário é fixo do sistema: aparece mesmo em configurações salvas antes dele existir
+    if (!servicos.some(s => s.id === FORMULARIO.id)) servicos.push(structuredClone(FORMULARIO));
+    return { intervalo: c.intervalo || DEFAULT.intervalo, servicos };
   }
   const saveConfig = cfg => Store.save('config', { id: 'monitor', ...cfg });
 
@@ -53,6 +60,17 @@ const Monitor = (() => {
           if (!at) return { status: 'unknown', detalhe: 'Nenhum sinal recebido ainda', em };
           const ok = (Date.now() - new Date(at)) / 60000 <= (svc.heartbeatMin || 10);
           return { status: ok ? 'ok' : 'down', detalhe: `Último sinal ${fmt.ago(at)} (${fmt.dateTime(at)})`, em };
+        }
+        case 'teste': {
+          if (!heartbeat?.at) return { status: 'unknown', detalhe: 'O primeiro teste roda às 9h', em };
+          const NOMES = { pagina: 'Página', config: 'Configuração', envio: 'Envio' };
+          const etapas = Object.entries(NOMES).map(([k, n]) => ({ n, ...(heartbeat.etapas?.[k] || { ok: false, detalhe: 'sem resultado' }) }));
+          const atrasado = (Date.now() - new Date(heartbeat.at)) / 60000 > (svc.heartbeatMin || 26 * 60);
+          const quando = `Teste de ${fmt.dateTime(heartbeat.at)}`;
+          if (atrasado) return { status: 'down', detalhe: `O teste diário não rodou desde ${fmt.dateTime(heartbeat.at)}`, em: heartbeat.at };
+          if (!heartbeat.ok) return { status: 'down', em: heartbeat.at,
+            detalhe: `${quando}: ${etapas.filter(e => !e.ok).map(e => e.detalhe).join(' · ')}${heartbeat.ultimo_ok ? ` · último teste ok: ${fmt.dateTime(heartbeat.ultimo_ok)}` : ''}` };
+          return { status: 'ok', detalhe: `${quando}: ${etapas.map(e => e.n + ' ✓').join(' · ')}`, em: heartbeat.at };
         }
         case 'alcance': {
           if (!svc.url) return { status: 'unknown', detalhe: 'URL não configurada', em };
