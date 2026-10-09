@@ -5,7 +5,7 @@ const Dash = (() => {
 
   const HUB_COLORS = () => Object.fromEntries(HUBS.map((h, i) => [h, css(`--series-${(i % 4) + 1}`)]));
 
-  if (window.Chart) Chart.defaults.font.family = "'Poppins', system-ui, sans-serif";
+  if (window.Chart) { Chart.defaults.font.family = "'Poppins', system-ui, sans-serif"; Chart.defaults.font.size = 12; }
 
   function bar(id, { labels, datasets, horizontal = false, money = false, stacked = false, suffix = '', afterLabel = null }) {
     charts[id]?.destroy();
