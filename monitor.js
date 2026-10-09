@@ -70,7 +70,7 @@ const Monitor = (() => {
           if (atrasado) return { status: 'down', detalhe: `O teste diário não rodou desde ${fmt.dateTime(heartbeat.at)}`, em: heartbeat.at };
           if (!heartbeat.ok) return { status: 'down', em: heartbeat.at,
             detalhe: `${quando}: ${etapas.filter(e => !e.ok).map(e => e.detalhe).join(' · ')}${heartbeat.ultimo_ok ? ` · último teste ok: ${fmt.dateTime(heartbeat.ultimo_ok)}` : ''}` };
-          return { status: 'ok', detalhe: `${quando}: ${etapas.map(e => e.n + ' ✓').join(' · ')}`, em: heartbeat.at };
+          return { status: 'ok', detalhe: `${quando}: ${etapas.map(e => e.n + ' ok').join(' · ')}`, em: heartbeat.at };
         }
         case 'alcance': {
           if (!svc.url) return { status: 'unknown', detalhe: 'URL não configurada', em };

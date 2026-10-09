@@ -51,6 +51,9 @@ const Dash = (() => {
         },
       },
     });
+    // a fonte Poppins pode terminar de carregar depois do gráfico: redesenha para os rótulos não ficarem cortados
+    const opcoes = arguments[1];
+    if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(() => { if (charts[id] && charts[id].canvas.isConnected) bar(id, opcoes); });
   }
 
   // Filtro de período: retorna {from, to} em AAAA-MM

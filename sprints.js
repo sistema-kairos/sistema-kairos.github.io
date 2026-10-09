@@ -61,12 +61,12 @@
   function legado(s, parte) {
     if (parte === 'retro') {
       const r = s.retro || {};
-      return [['✅ O que funcionou', r.positivos], ['⚠️ O que pode melhorar', r.melhorar], ['🎯 Ações para esta semana', r.acoes]]
+      return [['O que funcionou', r.positivos], ['O que pode melhorar', r.melhorar], ['Ações para esta semana', r.acoes]]
         .filter(([, v]) => v).map(([t, v]) => `<h3>${esc(t)}</h3><p>${esc(v).replace(/\n/g, '<br>')}</p>`).join('');
     }
     const krs = registros.filter(r => r.tipo === 'kr' && r.sprint === s.id);
-    return krs.map(k => `<p><b>🦾 KR's - ${esc(k.area || '—')} | ${esc(k.titulo || '—')}</b></p><ul>
-      <li>🏆 ${esc(k.prioridade ?? '—')}</li><li>💪 ${esc(k.esforco ?? '—')}</li><li>👤 ${esc(k.responsavel || '—')}</li><li>📅 ${esc(ddmm(k.prazo))}</li></ul>
+    return krs.map(k => `<p><b>KR's - ${esc(k.area || '—')} | ${esc(k.titulo || '—')}</b></p><ul>
+      <li>Prioridade: ${esc(k.prioridade ?? '—')}</li><li>Esforço: ${esc(k.esforco ?? '—')}</li><li>Responsável: ${esc(k.responsavel || '—')}</li><li>Prazo: ${esc(ddmm(k.prazo))}</li></ul>
       ${(k.tarefas || []).length ? `<ul class="check">${k.tarefas.map(t => `<li data-done="${!!t.feito}">${esc(t.texto || '')}${t.data ? ` (${ddmm(t.data)})` : ''}</li>`).join('')}</ul>` : ''}`).join('<hr>');
   }
   const htmlDe = (s, parte) => { const d = docDe(s, parte); return d ? d.html : legado(s, parte); };
@@ -74,21 +74,21 @@
   // ---------- coleta de dados a partir do CRM ----------
   const LINHAS = () => [
     { grupo: 'Atividades Comerciais' },
-    { k: 'leads_pa', label: '👥 Número de Leads Contatados (PA)', ajuda: 'Negociações criadas na semana com fonte "Prospecção ativa"' },
-    { k: 'leads_passivos', label: '👤 Número de Leads (Passivos)', ajuda: 'Negociações criadas na semana com outras fontes (formulário, indicação, Instagram…)' },
-    { k: 'ligacoes', label: '☎️ Número de Ligações realizadas', ajuda: 'Tarefas "Ligação" concluídas na semana' },
-    { k: 'cold_realizadas', label: '🥶 Cold Calls Realizadas', ajuda: 'Tarefas "Cold call" concluídas na semana' },
-    { k: 'cold_atendidas', label: '📞 Cold Calls Atendidas', ajuda: 'Cold calls concluídas na semana com resultado "Atendida"' },
-    { k: 'porta_a_porta', label: '🚪 Visitas Porta a Porta', ajuda: 'Tarefas "Porta a porta" concluídas na semana' },
-    { k: 'visitas_reunioes', label: '🏢 Número de Visitas / Reuniões', ajuda: 'Tarefas "Visita" e "Reunião" concluídas na semana' },
-    { k: 'contratos', label: '📑 Número de Contratos Fechados', ajuda: 'Negociações que entraram em "Negócio fechado" na semana' },
-    ...HUBS.map(h => ({ k: 'hub_' + norm(h), label: `💲 Valor fechado — Hub ${h} (Novos contratos/Upsell/Reajuste)`, moeda: true,
+    { k: 'leads_pa', label: 'Número de Leads Contatados (PA)', ajuda: 'Negociações criadas na semana com fonte "Prospecção ativa"' },
+    { k: 'leads_passivos', label: 'Número de Leads (Passivos)', ajuda: 'Negociações criadas na semana com outras fontes (formulário, indicação, Instagram…)' },
+    { k: 'ligacoes', label: 'Número de Ligações realizadas', ajuda: 'Tarefas "Ligação" concluídas na semana' },
+    { k: 'cold_realizadas', label: 'Cold Calls Realizadas', ajuda: 'Tarefas "Cold call" concluídas na semana' },
+    { k: 'cold_atendidas', label: 'Cold Calls Atendidas', ajuda: 'Cold calls concluídas na semana com resultado "Atendida"' },
+    { k: 'porta_a_porta', label: 'Visitas Porta a Porta', ajuda: 'Tarefas "Porta a porta" concluídas na semana' },
+    { k: 'visitas_reunioes', label: 'Número de Visitas / Reuniões', ajuda: 'Tarefas "Visita" e "Reunião" concluídas na semana' },
+    { k: 'contratos', label: 'Número de Contratos Fechados', ajuda: 'Negociações que entraram em "Negócio fechado" na semana' },
+    ...HUBS.map(h => ({ k: 'hub_' + norm(h), label: `Valor fechado — Hub ${h} (Novos contratos/Upsell/Reajuste)`, moeda: true,
       ajuda: `Soma do valor das negociações fechadas na semana com HUB ${h}` })),
     { grupo: 'Informações do MKT* (MQL)' },
-    { k: 'mql_novos', label: '🐳 Número de novos leads', ajuda: 'Leads passivos criados na semana' },
+    { k: 'mql_novos', label: 'Número de novos leads', ajuda: 'Leads passivos criados na semana' },
     ...['Q1', 'Q3', 'Q5'].map(q => ({ k: 'mql_' + q.toLowerCase(), label: q, ajuda: `Novos leads com Qualificação MKT (MQL) = ${q}` })),
     { grupo: 'Informações do MKT* (SQL)' },
-    { k: 'sql_novos', label: '🐳 Número de novos leads', ajuda: 'Leads passivos criados na semana' },
+    { k: 'sql_novos', label: 'Número de novos leads', ajuda: 'Leads passivos criados na semana' },
     ...['Q1', 'Q3', 'Q5'].map(q => ({ k: 'sql_' + q.toLowerCase(), label: q, ajuda: `Novos leads com Qualificação (SQL) = ${q}` })),
   ];
 
@@ -153,8 +153,8 @@
   const FERRAMENTAS = [
     ['bold', '<b>N</b>', 'Negrito (⌘B)'], ['italic', '<i>I</i>', 'Itálico (⌘I)'], ['underline', '<u>S</u>', 'Sublinhado (⌘U)'], ['strikeThrough', '<s>T</s>', 'Riscado'],
     ['|'], ['h2', 'T1', 'Título'], ['h3', 'T2', 'Subtítulo'], ['p', '¶', 'Texto normal'],
-    ['|'], ['insertUnorderedList', '•', 'Lista'], ['insertOrderedList', '1.', 'Lista numerada'], ['checklist', '☑', 'Checklist'],
-    ['|'], ['insertHorizontalRule', '—', 'Linha separadora'], ['link', '🔗', 'Link'], ['removeFormat', '⌫', 'Limpar formatação'],
+    ['|'], ['insertUnorderedList', '•', 'Lista'], ['insertOrderedList', '1.', 'Lista numerada'], ['checklist', '<svg viewBox="0 0 24 24" class="ico"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>', 'Checklist'],
+    ['|'], ['insertHorizontalRule', '—', 'Linha separadora'], ['link', '<svg viewBox="0 0 24 24" class="ico"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>', 'Link'], ['removeFormat', '<svg viewBox="0 0 24 24" class="ico"><path d="M5 6h11M10.5 6 7 18"/><path d="m15 14 5 5m0-5-5 5"/></svg>', 'Limpar formatação'],
   ];
   function editorHTML(s, parte) {
     const id = docId(s, parte);
@@ -266,12 +266,47 @@
   // ---------- lista de semanas ----------
   function selos(s) {
     const sp = temTexto(htmlDe(s, 'sprint')), rt = temTexto(htmlDe(s, 'retro'));
-    return `<span class="selo ${sp ? 'ok' : ''}">${sp ? '✓' : '○'} Sprint</span><span class="selo ${rt ? 'ok' : ''}">${rt ? '✓' : '○'} Retrospectiva</span>`;
+    return `<span class="selo ${sp ? 'ok' : ''}">Sprint</span><span class="selo ${rt ? 'ok' : ''}">Retrospectiva</span>`;
   }
   function atualizarSelos(s) { const el = $(`.semana[data-id="${s.id}"] .selos`); if (el) el.innerHTML = selos(s); }
 
+  // ---------- evolução semanal (tabela + gráfico com a coleta das últimas 8 semanas) ----------
+  function renderEvolucao(lista) {
+    const box = $('#evolucao');
+    if (!box) return;
+    const semanas = lista.filter(s => s.dados?.auto || s.dados?.manual).sort((a, b) => a.inicio.localeCompare(b.inicio)).slice(-8);
+    if (!semanas.length) { box.hidden = true; return; }
+    box.hidden = false;
+    const val = (s, k) => { const m = s.dados?.manual?.[k], a = s.dados?.auto?.[k]; return !isBlank(m) ? Number(m) : isBlank(a) ? null : Number(a); };
+    const hubs = HUBS.map(h => 'hub_' + norm(h));
+    const valorFechado = s => { const v = hubs.map(k => val(s, k)).filter(x => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
+    const METRICAS = [
+      ['Leads contatados (PA)', s => val(s, 'leads_pa')],
+      ['Leads passivos', s => val(s, 'leads_passivos')],
+      ['Ligações', s => val(s, 'ligacoes')],
+      ['Cold calls realizadas', s => val(s, 'cold_realizadas')],
+      ['Cold calls atendidas', s => val(s, 'cold_atendidas')],
+      ['Porta a porta', s => val(s, 'porta_a_porta')],
+      ['Visitas / reuniões', s => val(s, 'visitas_reunioes')],
+      ['Contratos fechados', s => val(s, 'contratos')],
+      ['Valor fechado', valorFechado, true],
+    ];
+    const rot = s => ddmm(s.inicio);
+    box.innerHTML = `<div class="evo-head"><h2>Evolução semanal</h2><span class="muted small">Coleta de dados das últimas ${semanas.length} semanas</span></div>
+      <div class="chart-box"><canvas id="c-evolucao"></canvas></div>
+      <div class="table-wrap"><table class="data static evo-tab"><thead><tr><th>Indicador</th>${semanas.map(s => `<th class="num">${rot(s)}</th>`).join('')}</tr></thead>
+      <tbody>${METRICAS.map(([n, f, din]) => `<tr><td>${esc(n)}</td>${semanas.map(s => { const v = f(s); return `<td class="num">${v === null ? '<span class="muted">—</span>' : din ? fmt.money(v) : fmt.num(v, 0)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+    if (typeof Dash !== 'undefined') Dash.bar('c-evolucao', { labels: semanas.map(rot), datasets: [
+      { label: 'Leads contatados (PA)', color: Dash.css('--series-1'), data: semanas.map(s => val(s, 'leads_pa') ?? 0) },
+      { label: 'Leads passivos', color: Dash.css('--series-2'), data: semanas.map(s => val(s, 'leads_passivos') ?? 0) },
+      { label: 'Visitas / reuniões', color: Dash.css('--series-3'), data: semanas.map(s => val(s, 'visitas_reunioes') ?? 0) },
+      { label: 'Contratos fechados', color: Dash.css('--series-4'), data: semanas.map(s => val(s, 'contratos') ?? 0) },
+    ] });
+  }
+
   function render() {
     const lista = sprints();
+    renderEvolucao(lista);
     const hoje = dates.today();
     const prox = proximoInicio();
     const btn = $('#nova-sprint');
@@ -310,15 +345,15 @@
       <summary><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>${titulo}</summary>
       <div class="parte-corpo">${editorHTML(s, p)}${extra}</div></details>`;
     $('.semana-corpo', el).innerHTML =
-      parte('sprint', '📋 Sprint', `
+      parte('sprint', 'Sprint', `
         <div class="coleta">
-          <div class="coleta-head"><h3 class="sec-titulo">📊 Coleta de dados</h3>
+          <div class="coleta-head"><h3 class="sec-titulo">Coleta de dados</h3>
             <span class="muted small">${s.dados?.atualizado_em ? `Preenchido pela plataforma (CRM) de ${ddmm(s.inicio)} a ${ddmm(s.fim)} · atualizado ${esc(fmt.dateTime(s.dados.atualizado_em))}` : 'Ainda sem números calculados'}
             ${lerCRM ? '' : ' · os números são atualizados quando alguém do Comercial abre esta semana'}</span></div>
           <div class="table-wrap"><table class="data static">${coletaHTML(s)}</table></div>
           <p class="muted small coleta-nota"><span class="auto-dot"></span> preenchido automaticamente · digite um valor para corrigir (apague para voltar ao automático)</p>
         </div>`)
-      + parte('retro', '🔁 Retrospectiva');
+      + parte('retro', 'Retrospectiva');
     ['sprint', 'retro'].forEach(p => ligarEditor($(`.parte[data-parte="${p}"]`, el), s, p));
     $$('.parte', el).forEach(pe => pe.addEventListener('toggle', () => {
       const k = `${s.inicio}_${pe.dataset.parte}`;

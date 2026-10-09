@@ -150,8 +150,8 @@ Aba aberta a toda a equipe (`sprints.html`): administradores e Utilizadores de q
 
 - **Uma linha por semana**, que abre e fecha. A semana atual abre sozinha.
 - Dentro de cada semana há duas partes, que também abrem e fecham:
-  - **📋 Sprint:** documento em branco com formatação (negrito, títulos, listas, checklist, separador e link) e, embaixo, o quadro **📊 Coleta de dados**;
-  - **🔁 Retrospectiva:** documento em branco.
+  - **Sprint:** documento em branco com formatação (negrito, títulos, listas, checklist, separador e link) e, embaixo, o quadro **Coleta de dados**;
+  - **Retrospectiva:** documento em branco.
 - Dá para colar o texto do ClickUp, do Word ou do Google Docs. A formatação é mantida, e qualquer código perigoso é removido.
 - Os documentos salvam sozinhos. Se duas pessoas editarem o mesmo documento ao mesmo tempo, o sistema avisa e pergunta qual versão manter.
 - **+ Adicionar sprint da semana seguinte** cria a semana depois da última sprint (ou a semana atual, se a equipe pulou semanas).
@@ -173,9 +173,9 @@ Cada mudança no banco fica num arquivo em [`supabase/migrations/`](supabase/mig
 
 Em **Sistema → Calculadora de margem**, organizada em três abas:
 
-- **🧮 Calcular:** escolha o plano ("O que você está calculando?") ou crie um novo e ajuste os dados em linguagem simples (cliente, espaço e equipamentos, quanto cobramos). O resultado aparece ao lado: margem de contribuição, margem bruta, receita bruta e "para onde vai a receita".
-- **📊 Comparar planos:** todos os planos lado a lado, com a conta completa (receita, impostos, CSP, mão de obra, ocupação, lucro bruto, comissão e margens).
-- **⚙️ Premissas:** os custos que valem para todos os planos do cenário. Você informa o custo total e a base de rateio, e o sistema calcula o custo unitário.
+- **Calcular:** escolha o plano ("O que você está calculando?") ou crie um novo e ajuste os dados em linguagem simples (cliente, espaço e equipamentos, quanto cobramos). O resultado aparece ao lado: margem de contribuição, margem bruta, receita bruta e "para onde vai a receita".
+- **Comparar planos:** todos os planos lado a lado, com a conta completa (receita, impostos, CSP, mão de obra, ocupação, lucro bruto, comissão e margens).
+- **Premissas:** os custos que valem para todos os planos do cenário. Você informa o custo total e a base de rateio, e o sistema calcula o custo unitário.
 
 Há vários **cenários** (por exemplo, um por HUB). Os dados ficam na tabela `margem`, que só administradores leem e alteram.
 

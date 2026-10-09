@@ -120,16 +120,16 @@
       </section>
       <div class="mg-calc">
         <div class="mg-form">
-          <section class="card mg-bloco"><h3>📦 Plano</h3>
+          <section class="card mg-bloco"><h3>Plano</h3>
             <label class="mg-f"><span>Nome do plano</span><input class="input" data-f="nome" value="${esc(p.nome)}" ${dis}></label></section>
-          <section class="card mg-bloco"><h3>🛍️ Sobre o cliente</h3>
+          <section class="card mg-bloco"><h3>Sobre o cliente</h3>
             <div class="mg-grid">
               ${campo('venda', 'Quanto ele vende por mês', 'Venda média do cliente', 'R$')}
               ${campo('pedidos', 'Quantos pedidos por mês')}
               <div class="mg-f"><span>Ticket médio</span><b class="mg-ticket" data-out="ticket"></b><small>venda ÷ pedidos</small></div>
               ${campo('skus', 'Produtos (SKUs) no plano', 'Informativo: não muda a conta')}
             </div></section>
-          <section class="card mg-bloco"><h3>🧊 Espaço e equipamentos</h3>
+          <section class="card mg-bloco"><h3>Espaço e equipamentos</h3>
             <div class="mg-f"><span>Freezer</span>
               <div class="mg-seg" role="radiogroup" aria-label="Freezer">${FREEZER_OPC.map(([v, l]) => `<button type="button" role="radio" data-freezer="${v}"
                 aria-checked="${!outro && n(p.freezers) === v}" class="${!outro && n(p.freezers) === v ? 'on' : ''}" ${dis}>${l}</button>`).join('')}
@@ -141,7 +141,7 @@
               ${campo('m2', 'Área ocupada', 'Base do custo de ocupação', '', 'm²')}
               ${campo('cnpjs', 'CNPJs', 'Licença de software por CNPJ')}
             </div></section>
-          <section class="card mg-bloco"><h3>💰 Quanto cobramos</h3>
+          <section class="card mg-bloco"><h3>Quanto cobramos</h3>
             <div class="mg-grid">
               ${campo('mensalidade', 'Mensalidade fixa', '', 'R$')}
               ${campo('aliq', 'Percentual sobre as vendas', '', '', '%')}
@@ -163,11 +163,11 @@
     const parte = v => r.bruta ? v / r.bruta : 0;
     const larg = v => Math.max(0, Math.min(100, parte(v) * 100)).toFixed(1);
     const custos = [
-      ['🧾', 'Impostos', r.imposto, 'Simples Nacional sobre a receita bruta'],
-      ['🧊', 'Equipamentos, energia e software', r.csp, 'Freezer, microondas e licença'],
-      ['👥', 'Mão de obra operacional', r.mo, `${brl(unit('mao_obra'))} por pedido`],
-      ['🏢', 'Ocupação do espaço', r.ocup, `${brl(unit('ocupacao'))} por m²`],
-      ['🤝', 'Comissão comercial', r.comissao, `${pct2(atual.premissas.comissao?.pct)} da mensalidade`],
+      ['Impostos', r.imposto, 'Simples Nacional sobre a receita bruta'],
+      ['Equipamentos, energia e software', r.csp, 'Freezer, microondas e licença'],
+      ['Mão de obra operacional', r.mo, `${brl(unit('mao_obra'))} por pedido`],
+      ['Ocupação do espaço', r.ocup, `${brl(unit('ocupacao'))} por m²`],
+      ['Comissão comercial', r.comissao, `${pct2(atual.premissas.comissao?.pct)} da mensalidade`],
     ];
     const de100 = r.bruta ? (r.mcp * 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : null;
     $('#mg-result').innerHTML = `
@@ -183,9 +183,9 @@
       </div>
       <h4>Para onde vai a receita</h4>
       <ul class="mg-barras">
-        ${custos.map(([ic, l, v, obs]) => `<li><div class="mg-bl"><span>${ic} ${l}</span><b>−${brl(v)}</b></div>
+        ${custos.map(([l, v, obs]) => `<li><div class="mg-bl"><span>${l}</span><b>−${brl(v)}</b></div>
           <div class="mg-track"><span style="width:${larg(v)}%"></span></div><small>${pct1(parte(v))} da receita · ${obs}</small></li>`).join('')}
-        <li class="sobra"><div class="mg-bl"><span>✅ Sobra (margem de contribuição)</span><b>${brl(r.mc)}</b></div>
+        <li class="sobra"><div class="mg-bl"><span>Sobra (margem de contribuição)</span><b>${brl(r.mc)}</b></div>
           <div class="mg-track"><span style="width:${larg(r.mc)}%"></span></div><small>${pct1(r.mcp)} da receita</small></li>
       </ul>
       <details class="mg-conta"><summary>Ver a conta completa</summary>
@@ -322,7 +322,11 @@
             : `<td class="mg-val" data-calc="${li}" data-plano="${esc(p.id)}"></td>`).join('')}</tr>`;
         }).join('')}</tbody>
       </table></div>
-      ${canEdit ? '<button class="btn ghost small mg-add" id="add-plano">+ Adicionar plano</button>' : ''}</section>`;
+      ${canEdit ? '<button class="btn ghost small mg-add" id="add-plano">+ Adicionar plano</button>' : ''}</section>
+      <div class="charts">
+        <section class="card"><h3>Margem de contribuição por plano</h3><div class="chart-box"><canvas id="c-planos-mc"></canvas></div></section>
+        <section class="card"><h3>Para onde vai a receita de cada plano</h3><div class="chart-box"><canvas id="c-planos-rec"></canvas></div></section>
+      </div>`;
     atualizarTabela();
     $$('[data-plano][data-f]').forEach(i => i.addEventListener('input', () => {
       const p = atual.planos.find(x => x.id === i.dataset.plano);
@@ -347,6 +351,19 @@
       const r = calcular(p);
       $$(`[data-calc][data-plano="${CSS.escape(p.id)}"]`).forEach(td => { td.textContent = LINHAS[td.dataset.calc].calc(r); });
     });
+    graficosPlanos();
+  }
+  // gráficos da aba Comparar: atualizam junto com a tabela
+  function graficosPlanos() {
+    if (typeof Dash === 'undefined' || !$('#c-planos-mc')) return;
+    const ps = atual.planos, rs = ps.map(calcular), nomes = ps.map(p => p.nome || 'Plano');
+    Dash.bar('c-planos-mc', { labels: nomes, suffix: '%',
+      datasets: [{ label: 'Margem de contribuição', data: rs.map(r => Math.round(r.mcp * 1000) / 10) }],
+      afterLabel: (v, c) => `${brl(rs[c.dataIndex].mc)} por mês` });
+    const partes = [['Impostos', 'imposto', '--series-2'], ['Equipamentos, energia e software', 'csp', '--series-3'], ['Mão de obra', 'mo', '--axis'],
+      ['Ocupação', 'ocup', '--accent-soft'], ['Comissão', 'comissao', '--warning'], ['Sobra', 'mc', '--good']];
+    Dash.bar('c-planos-rec', { labels: nomes, stacked: true, money: true,
+      datasets: partes.map(([l, k, cor]) => ({ label: l, color: Dash.css(cor), data: rs.map(r => Math.round(Math.max(0, r[k]) * 100) / 100) })) });
   }
 
   // ---------- salvar / cenários ----------

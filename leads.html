@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Leads · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610101000">
+  <link rel="stylesheet" href="style.css?v=202610101700">
 </head>
 <body data-page="leads">
   <main class="content">
@@ -31,6 +31,12 @@
         <span class="muted small" id="updated"></span>
       </div>
       <div class="kpis main" id="k-leads"></div>
+      <div class="charts" style="margin-top:16px">
+        <div class="card"><h3>Leads por semana</h3><div class="chart-box"><canvas id="c-semana"></canvas></div></div>
+        <div class="card"><h3>Leads por origem (UTM)</h3><div class="chart-box"><canvas id="c-origem"></canvas></div></div>
+        <div class="card"><h3>Pedidos por mês informados</h3><div class="chart-box"><canvas id="c-pedidos"></canvas></div></div>
+        <div class="card"><h3>Quando querem começar</h3><div class="chart-box"><canvas id="c-prazo"></canvas></div></div>
+      </div>
       <details class="more">
         <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
         <div class="more-body">
@@ -41,12 +47,13 @@
 
     <div id="crud"></div>
   </main>
-  <script src="config.js?v=202610101000"></script>
-  <script src="store.js?v=202610101000"></script>
-  <script src="common.js?v=202610101000"></script>
-  <script src="schemas.js?v=202610101000"></script>
-  <script src="crud.js?v=202610101000"></script>
-  <script src="dash.js?v=202610101000"></script>
+  <script src="config.js?v=202610101700"></script>
+  <script src="store.js?v=202610101700"></script>
+  <script src="common.js?v=202610101700"></script>
+  <script src="schemas.js?v=202610101700"></script>
+  <script src="crud.js?v=202610101700"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="dash.js?v=202610101700"></script>
   <script>
     const url = new URL('formulario-midias-sociais.html', location.href).href;
     $('#form-url').textContent = url;
@@ -81,9 +88,29 @@
         { label: 'Mais de 400 pedidos/mês', value: fmt.num(grandes, 0), sub: 'operações maiores' },
         { label: 'Convertidos', value: fmt.num(convertidos, 0), sub: `${pct(convertidos, leads.length)} dos leads` },
       ]);
+      graficos(leads);
       $('#updated').textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     }
+    function graficos(leads) {
+      // últimas 12 semanas (segunda a domingo)
+      const seg = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; };
+      const inicio = seg(new Date()); inicio.setDate(inicio.getDate() - 7 * 11);
+      const semanas = Array.from({ length: 12 }, (_, i) => { const d = new Date(inicio); d.setDate(d.getDate() + 7 * i); return d; });
+      const chave = d => dates.toISO(seg(d));
+      const porSemana = Dash.countBy(leads.filter(l => l.recebido_em), l => chave(l.recebido_em));
+      Dash.bar('c-semana', { labels: semanas.map(d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })),
+        datasets: [{ label: 'Leads', data: semanas.map(d => porSemana[dates.toISO(d)] || 0) }] });
+      const origem = Object.entries(Dash.countBy(leads, l => l.utm_source || 'Sem UTM')).sort((a, b) => b[1] - a[1]);
+      Dash.bar('c-origem', { labels: origem.map(e => e[0]), horizontal: true, datasets: [{ label: 'Leads', data: origem.map(e => e[1]) }] });
+      const ordem = (lista, campo) => lista.map(o => [o, leads.filter(l => l[campo] === o).length])
+        .concat([['Não informado', leads.filter(l => !lista.includes(l[campo])).length]]).filter(e => e[1]);
+      const ped = ordem(['Mais de 400 pedidos', 'De 150 a 400', 'De 60 a 150', 'Menos de 60'], 'pedidos_mes');
+      Dash.bar('c-pedidos', { labels: ped.map(e => e[0]), horizontal: true, datasets: [{ label: 'Leads', color: Dash.css('--series-3'), data: ped.map(e => e[1]) }] });
+      const pr = ordem(['Imediatamente', 'Entre 1 e 3 meses', 'Acima de 3 meses'], 'prazo_inicio');
+      Dash.bar('c-prazo', { labels: pr.map(e => e[0]), horizontal: true, datasets: [{ label: 'Leads', color: Dash.css('--series-2'), data: pr.map(e => e[1]) }] });
+    }
     resumo();
+    Dash.onThemeChange(resumo);
     // novas respostas aparecem sozinhas (sem atrapalhar quem está editando um lead)
     setInterval(() => { if (!document.querySelector('dialog[open]')) { page.reload(); resumo(); } }, 60000);
     document.addEventListener('close', resumo, true);

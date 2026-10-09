@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Dashboard Comercial · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610101000">
+  <link rel="stylesheet" href="style.css?v=202610101700">
 </head>
 <body data-page="dash-comercial">
   <main class="content">
@@ -34,6 +34,28 @@
       </details>
     </section>
 
+    <section class="dash-section" id="sec-crm">
+      <div class="section-head">
+        <span class="badge lime">CRM</span>
+        <h2>Funil de negociações</h2>
+        <span class="muted small">Negociações do CRM no período escolhido</span>
+      </div>
+      <div class="kpis main" id="k-crm"></div>
+      <div class="charts" style="margin-top:16px">
+        <div class="card"><h3>Negociações em aberto por etapa</h3><div class="chart-box"><canvas id="c-etapas"></canvas></div></div>
+        <div class="card"><h3>Novas negociações por mês e fonte</h3><div class="chart-box"><canvas id="c-fontes"></canvas></div></div>
+        <div class="card"><h3>Motivos de perda</h3><div class="chart-box"><canvas id="c-perdas"></canvas></div></div>
+        <div class="card"><h3>Tarefas concluídas por tipo</h3><div class="chart-box"><canvas id="c-tarefas"></canvas></div></div>
+      </div>
+      <div class="card table-card">
+        <div class="card-titulo"><h3>Desempenho por responsável</h3></div>
+        <div class="table-wrap"><table class="data static"><thead><tr>
+          <th>Responsável</th><th class="num">Em aberto</th><th class="num">Novas</th><th class="num">Fechadas</th><th class="num">Perdidas</th>
+          <th class="num">Conversão</th><th class="num">Valor fechado</th><th class="num">Tarefas atrasadas</th>
+        </tr></thead><tbody id="t-resp"></tbody></table></div>
+      </div>
+    </section>
+
     <section class="dash-section">
       <div class="section-head">
         <span class="badge lilac">Base</span>
@@ -44,7 +66,7 @@
         <summary><span><span class="label-open">Ver detalhes</span><span class="label-close">Ocultar detalhes</span></span></summary>
         <div class="more-body">
           <div class="card table-card">
-            <div style="padding:16px 16px 0"><h3>Fechamentos do período</h3></div>
+            <div class="card-titulo"><h3>Fechamentos do período</h3></div>
             <div class="table-wrap"><table class="data static"><thead><tr>
               <th>Mês</th><th>Loja</th><th>Cliente</th><th>Hub</th><th>Modelo</th><th class="num">Mensalidade</th><th>Início previsto</th><th>Início real</th><th>ICP</th>
             </tr></thead><tbody id="t-fech"></tbody></table></div>
@@ -53,14 +75,64 @@
       </details>
     </section>
   </main>
-  <script src="config.js?v=202610101000"></script>
-  <script src="store.js?v=202610101000"></script>
-  <script src="common.js?v=202610101000"></script>
+  <script src="config.js?v=202610101700"></script>
+  <script src="store.js?v=202610101700"></script>
+  <script src="common.js?v=202610101700"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="dash.js?v=202610101000"></script>
+  <script src="dash.js?v=202610101700"></script>
   <script>
     $('#filters').innerHTML = Dash.filtersHTML();
-    let comercial = [], cs = [];
+    let comercial = [], cs = [], crm = [];
+    const ETAPAS = ['Sem contato', 'Contato feito', 'Identificação de interesse', 'Reunião inicial', 'Visita', 'Em negociação'];
+    const entrouEm = (d, etapa, meses) => (d.historico || []).some(h => h.etapa === etapa && meses.includes(dates.ym(h.em)));
+    const hojeISO = () => dates.today();
+    const atrasada = t => !t.concluida && t.data && t.data < hojeISO();
+    // top N categorias + "Outros"
+    function topN(contagem, n) {
+      const e = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
+      return e.length > n ? [...e.slice(0, n), ['Outros', e.slice(n).reduce((s, x) => s + x[1], 0)]] : e;
+    }
+    function renderCRM(months, hub) {
+      if (!$('#sec-crm')) return;
+      if (!Store.podeLer('crm')) { $('#sec-crm').remove(); return; }
+      const deals = crm.filter(d => !hub || (d.empresa?.hub || '') === hub);
+      const novas = deals.filter(d => months.includes(dates.ym(d.criado_em)));
+      const fechadas = deals.filter(d => entrouEm(d, 'Negócio fechado', months));
+      const perdidas = deals.filter(d => entrouEm(d, 'Perdido', months));
+      const abertas = deals.filter(d => d.etapa !== 'Perdido' && d.etapa !== 'Negócio fechado');
+      const valor = arr => arr.reduce((s, d) => s + (Number(d.valor_total) || 0), 0);
+      const conv = (a, b) => b ? fmt.pct(Math.round(a / b * 1000) / 10) : '—';
+      Dash.kpis('#k-crm', [
+        { label: 'Em aberto agora', value: fmt.num(abertas.length, 0), sub: `${fmt.money(valor(abertas))} em negociação` },
+        { label: 'Novas no período', value: fmt.num(novas.length, 0), sub: 'negociações criadas' },
+        { label: 'Fechadas no período', value: fmt.num(fechadas.length, 0), sub: fmt.money(valor(fechadas)) },
+        { label: 'Conversão', value: conv(fechadas.length, novas.length), sub: `fechadas ÷ novas · ${perdidas.length} perdida${perdidas.length === 1 ? '' : 's'} no período` },
+      ]);
+      const labels = months.map(fmt.month);
+      Dash.bar('c-etapas', { labels: ETAPAS, horizontal: true,
+        datasets: [{ label: 'Negociações', data: ETAPAS.map(e => abertas.filter(d => (d.etapa || 'Sem contato') === e).length) }],
+        afterLabel: (v, c) => fmt.money(valor(abertas.filter(d => (d.etapa || 'Sem contato') === ETAPAS[c.dataIndex]))) + ' em negociação' });
+      const fontes = topN(Dash.countBy(novas, d => d.fonte || 'Sem fonte'), 4).map(e => e[0]);
+      const cores = ['--series-1', '--series-2', '--series-3', '--series-4'].map(Dash.css).concat(Dash.css('--axis'));
+      const fonteDe = d => { const f = d.fonte || 'Sem fonte'; return fontes.includes(f) ? f : 'Outros'; };
+      Dash.bar('c-fontes', { labels, stacked: true,
+        datasets: fontes.map((f, i) => ({ label: f, color: cores[i], data: months.map(m => novas.filter(d => dates.ym(d.criado_em) === m && fonteDe(d) === f).length) })) });
+      const motivos = topN(Dash.countBy(perdidas, d => d.motivo_perda || 'Não informado'), 6);
+      Dash.bar('c-perdas', { labels: motivos.map(e => e[0]), horizontal: true, datasets: [{ label: 'Negociações perdidas', color: Dash.css('--critical'), data: motivos.map(e => e[1]) }] });
+      const tarefas = deals.flatMap(d => (d.tarefas || []).filter(t => t.concluida && months.includes(dates.ym(t.concluida_em))));
+      const tipos = Object.entries(Dash.countBy(tarefas, t => t.tipo || 'Outro')).sort((a, b) => b[1] - a[1]);
+      Dash.bar('c-tarefas', { labels: tipos.map(e => e[0]), horizontal: true, datasets: [{ label: 'Tarefas concluídas', data: tipos.map(e => e[1]) }] });
+      // tabela por responsável
+      const pessoas = [...new Set(deals.map(d => d.responsavel || 'Sem responsável'))];
+      const de = (arr, p) => arr.filter(d => (d.responsavel || 'Sem responsável') === p);
+      const linhas = pessoas.map(p => ({ p, ab: de(abertas, p).length, nv: de(novas, p).length, fe: de(fechadas, p), pe: de(perdidas, p).length,
+        atr: de(deals, p).reduce((s, d) => s + (d.tarefas || []).filter(atrasada).length, 0) }))
+        .filter(l => l.ab || l.nv || l.fe.length || l.pe || l.atr).sort((a, b) => b.fe.length - a.fe.length || b.nv - a.nv);
+      $('#t-resp').innerHTML = linhas.map(l => `<tr><td>${esc(l.p.split('@')[0])}</td><td class="num">${l.ab}</td><td class="num">${l.nv}</td>
+        <td class="num">${l.fe.length}</td><td class="num">${l.pe}</td><td class="num">${conv(l.fe.length, l.nv)}</td>
+        <td class="num">${fmt.money(valor(l.fe))}</td><td class="num ${l.atr ? 'neg' : ''}">${l.atr}</td></tr>`).join('')
+        || '<tr><td colspan="8" class="empty">Nenhuma negociação no período.</td></tr>';
+    }
     const mesRef = r => r.mes_fechamento || dates.ym(r.data_entrada_real) || dates.ym(r.data_entrada_contrato);
 
     function render() {
@@ -114,6 +186,7 @@
       const porModelo = Object.entries(Dash.countBy(rows, r => r.modelo || 'Não informado')).sort((a, b) => b[1] - a[1]);
       Dash.bar('c-modelo', { labels: porModelo.map(e => e[0]), horizontal: true, datasets: [{ label: 'Clientes', data: porModelo.map(e => e[1]) }] });
 
+      renderCRM(months, hub);
       $('#t-fech').innerHTML = [...rows].sort((a, b) => (mesRef(b) || '').localeCompare(mesRef(a) || '')).map(r => `<tr>
         <td>${fmt.month(mesRef(r))}</td><td>${esc(r.nome_loja)}</td><td>${esc(r.nome_cliente)}</td><td>${esc(r.hub || '—')}</td>
         <td>${esc(r.modelo || '—')}</td><td class="num">${fmt.money(r.mensalidade_fixa)}</td><td>${fmt.date(r.data_entrada_contrato)}</td><td>${fmt.date(r.data_entrada_real)}</td><td>${esc(r.icp || '—')}</td>
@@ -121,7 +194,7 @@
     }
 
     (async () => {
-      try { [comercial, cs] = await Promise.all([Store.list('comercial'), Store.list('cs')]); }
+      try { [comercial, cs, crm] = await Promise.all([Store.list('comercial'), Store.list('cs'), Store.podeLer('crm') ? Store.list('crm') : []]); }
       catch (e) { toast('Erro ao carregar dados: ' + e.message, 'error'); }
       $$('#filters select').forEach(s => s.addEventListener('change', render));
       Dash.onThemeChange(render);

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Status dos Sistemas · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610101000">
+  <link rel="stylesheet" href="style.css?v=202610101700">
 </head>
 <body data-page="sistemas">
   <main class="content">
@@ -19,16 +19,16 @@
     </header>
     <div class="card overall unknown" id="overall"><span class="dot"></span><span>Verificando…</span></div>
     <div id="groups"></div>
-    <div class="card table-card" style="margin-top:20px">
-      <div style="padding:16px 16px 0"><h3>Histórico de mudanças (neste navegador)</h3></div>
+    <div class="card table-card bloco-espaco">
+      <div class="card-titulo"><h3>Histórico de mudanças (neste navegador)</h3></div>
       <div class="table-wrap"><table class="data static"><thead><tr><th>Quando</th><th>Serviço</th><th>Status</th><th>Detalhe</th></tr></thead>
       <tbody id="hist"></tbody></table></div>
     </div>
   </main>
-  <script src="config.js?v=202610101000"></script>
-  <script src="store.js?v=202610101000"></script>
-  <script src="common.js?v=202610101000"></script>
-  <script src="monitor.js?v=202610101000"></script>
+  <script src="config.js?v=202610101700"></script>
+  <script src="store.js?v=202610101700"></script>
+  <script src="common.js?v=202610101700"></script>
+  <script src="monitor.js?v=202610101700"></script>
   <script>
     const HIST_KEY = 'gh_hist';
     let cfg, results = {}, timer, countdown;
@@ -108,10 +108,9 @@
     function card(s) {
       const r = results[s.id] || { status: 'unknown', detalhe: 'Verificando…' };
       const L = Monitor.labels(s);
-      const icon = { ok: '●', down: '✕', unknown: '?' }[r.status];
       return `<div class="card svc ${r.status}">
         <div class="svc-head"><span class="svc-name">${esc(s.nome)}</span><span class="badge neutral">${Monitor.MODOS[s.modo] || s.modo}</span></div>
-        <div class="svc-status">${r.status === 'ok' ? '<span class="dot"></span>' : `<span aria-hidden="true">${icon}</span>`}${L[r.status]}</div>
+        <div class="svc-status"><span class="dot"></span>${L[r.status]}</div>
         <div class="svc-meta"><span>${esc(r.detalhe)}</span>
           ${r.em ? `<span class="muted">${r.manual ? 'Atualizado' : 'Verificado'} ${fmt.ago(r.em)}</span>` : ''}</div>
         <div class="svc-actions">

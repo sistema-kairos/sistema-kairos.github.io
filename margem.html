@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Calculadora de margem · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610101000">
+  <link rel="stylesheet" href="style.css?v=202610101700">
 </head>
 <body data-page="margem">
   <main class="content margem-page">
@@ -17,9 +17,9 @@
     </header>
     <div class="mg-topo">
       <nav class="mg-abas" role="tablist" aria-label="Seções da calculadora">
-        <button class="mg-aba" role="tab" data-aba="calc">🧮 Calcular</button>
-        <button class="mg-aba" role="tab" data-aba="comparar">📊 Comparar planos</button>
-        <button class="mg-aba" role="tab" data-aba="premissas">⚙️ Premissas</button>
+        <button class="mg-aba" role="tab" data-aba="calc">Calcular</button>
+        <button class="mg-aba" role="tab" data-aba="comparar">Comparar planos</button>
+        <button class="mg-aba" role="tab" data-aba="premissas">Premissas</button>
       </nav>
       <div class="mg-cenarios">
         <label class="muted small" for="cenario">Cenário</label>
@@ -31,9 +31,11 @@
     </div>
     <div id="mg-conteudo" role="tabpanel"></div>
   </main>
-  <script src="config.js?v=202610101000"></script>
-  <script src="store.js?v=202610101000"></script>
-  <script src="common.js?v=202610101000"></script>
-  <script src="margem.js?v=202610101000"></script>
+  <script src="config.js?v=202610101700"></script>
+  <script src="store.js?v=202610101700"></script>
+  <script src="common.js?v=202610101700"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="dash.js?v=202610101700"></script>
+  <script src="margem.js?v=202610101700"></script>
 </body>
 </html>

@@ -221,7 +221,7 @@ function renderLayout() {
 
   const top = document.createElement('header');
   top.className = 'topbar';
-  top.innerHTML = `<button class="icon-btn" id="menu-toggle" aria-label="Menu">☰</button><span class="brand-logo logo-mark logo-wordmark" role="img" aria-label="Órion"></span>`;
+  top.innerHTML = `<button class="icon-btn" id="menu-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" class="ico"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><span class="brand-logo logo-mark logo-wordmark" role="img" aria-label="Órion"></span>`;
   document.body.prepend(top);
   $('#menu-toggle').addEventListener('click', () => document.body.classList.toggle('menu-open'));
   $('#logout')?.addEventListener('click', () => { Store.logout(); location.href = 'login.html'; });
