@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Dashboard MKT · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610101700">
+  <link rel="stylesheet" href="style.css?v=202610191300">
 </head>
 <body data-page="dash-mkt">
   <main class="content">
@@ -22,6 +22,22 @@
     <section class="dash-section">
       <div class="section-head"><span class="badge lime">Funil</span><h2>Visitantes, leads e vendas</h2></div>
       <div class="kpis main" id="k-funil"></div>
+    </section>
+
+    <section class="dash-section" id="sec-form">
+      <div class="section-head"><span class="badge lilac">Formulário</span><h2>Onde as pessoas desistem</h2>
+        <span class="muted small">Quem abriu o formulário e até que pergunta chegou (sem dados pessoais de quem não enviou)</span></div>
+      <div class="kpis main" id="k-form"></div>
+      <div class="charts" style="margin-top:16px">
+        <div class="card"><h3>Pessoas que chegaram em cada pergunta</h3><div class="chart-box"><canvas id="c-form-funil"></canvas></div></div>
+        <div class="card"><h3>Envio por situação do delivery</h3><div class="chart-box"><canvas id="c-form-qualif"></canvas></div></div>
+      </div>
+      <div class="card table-card">
+        <div class="card-titulo"><h3>Quem abriu e não enviou</h3></div>
+        <div class="table-wrap"><table class="data static"><thead><tr>
+          <th>Quando</th><th>Parou em</th><th>Origem</th><th>Aparelho</th><th>Qualificação respondida</th><th class="num">Tempo no formulário</th>
+        </tr></thead><tbody id="t-form"></tbody></table></div>
+      </div>
     </section>
 
     <section class="dash-section">
@@ -48,12 +64,12 @@
       <p class="muted small" id="f-info"></p>
     </section>
   </main>
-  <script src="config.js?v=202610101700"></script>
-  <script src="store.js?v=202610101700"></script>
+  <script src="config.js?v=202610191300"></script>
+  <script src="store.js?v=202610191300"></script>
   <script>window.IND_AREA = 'MKT'; window.IND_MODO = 'dashboard';</script>
-  <script src="common.js?v=202610101700"></script>
+  <script src="common.js?v=202610191300"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="dash.js?v=202610101700"></script>
-  <script src="indicadores.js?v=202610101700"></script>
+  <script src="dash.js?v=202610191300"></script>
+  <script src="indicadores.js?v=202610191300"></script>
 </body>
 </html>

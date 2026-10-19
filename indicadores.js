@@ -159,7 +159,7 @@
   // ---------- estado ----------
   let indicadores = [];
   let lancados = {};   // { 'AAAA-MM': { id: valor } }
-  let D = { leads: [], crm: [], comercial: [], cs: [], visitas: [], base: null };
+  let D = { leads: [], crm: [], comercial: [], cs: [], visitas: [], sessoes: [], base: null };
   let inicio = INICIO_PADRAO;
   const antesDoInicio = ym => !!inicio && ym < inicio;
   let ano = Number(dates.today().slice(0, 4));
@@ -258,10 +258,10 @@
     prepararFormulas();
     const precisa = new Set(indicadores.filter(i => i.tipo === 'auto').flatMap(i => FONTES[i.fonte]?.tabelas || []));
     const ler = t => precisa.has(t) && Store.podeLer(t) ? Store.list(t).catch(() => []) : Promise.resolve([]);
-    if (MODO === 'dashboard') precisa.add('crm');   // leads por canal
-    const [leads, crm, comercial, cs, visitas, fin] = await Promise.all([ler('leads'), ler('crm'), ler('comercial'), ler('cs'), ler('visitas'),
+    if (MODO === 'dashboard') { precisa.add('crm'); precisa.add('form_sessoes'); }   // leads por canal e funil do formulário
+    const [leads, crm, comercial, cs, visitas, sessoes, fin] = await Promise.all([ler('leads'), ler('crm'), ler('comercial'), ler('cs'), ler('visitas'), ler('form_sessoes'),
       indicadores.some(i => i.fonte === 'config.faturamento_base') ? Store.get('config', 'financeiro').catch(() => null) : null]);
-    D = { leads, crm, comercial, cs, visitas, base: Number(fin?.faturamentoMensalBase) || window.APP_CONFIG.faturamentoMensalBase || null };
+    D = { leads, crm, comercial, cs, visitas, sessoes, base: Number(fin?.faturamentoMensalBase) || window.APP_CONFIG.faturamentoMensalBase || null };
     Object.keys(autoCache).forEach(k => delete autoCache[k]);
     if (!selecionado || !indicadores.some(i => i.id === selecionado)) selecionado = indicadores[0]?.id || null;
     render();
@@ -534,6 +534,8 @@
       <td class="num">${l.leads ? fmt.pct(Math.round(l.vendas / l.leads * 1000) / 10) : '—'}</td><td class="num">${fmt.money(l.receita)}</td></tr>`).join('')
       || '<tr><td colspan="5" class="empty">Nenhum lead no período.</td></tr>';
 
+    renderFunilFormulario(meses);
+
     // evolução mensal dos leads por canal
     const hoje = dates.today().slice(0, 7);
     const ini = inicio && inicio <= hoje ? inicio : (desdeCrm(D) || hoje);
@@ -544,6 +546,45 @@
     const outros = todos.map(m => D.crm.filter(d => !top.includes(canal(d)) && dates.ym(d.criado_em) === m).length);
     if (outros.some(Boolean)) series.push({ label: 'Outros', color: Dash.css('--muted'), data: outros });
     Dash.bar('c-evolucao', { labels: todos.map(fmt.month), stacked: true, datasets: series.length ? series : [{ label: 'Leads', data: todos.map(() => 0) }] });
+  }
+
+  // ---------- funil do formulário (form_sessoes) ----------
+  const PERGUNTAS = [['nome', 'Nome'], ['telefone', 'Telefone'], ['email', 'E-mail'], ['situacao_delivery', 'Situação do delivery'],
+    ['vende_apps', 'Vende por apps? *'], ['pedidos_mes', 'Pedidos por mês *'], ['nome_loja', 'Nome da loja'], ['prazo_inicio', 'Quando quer começar'],
+    ['ideia', 'Ideia de negócio'], ['enviado', 'Enviou']];
+  const ORDEM = PERGUNTAS.map(p => p[0]);
+  const rotulo = k => (PERGUNTAS.find(p => p[0] === k) || [k, k])[1].replace(' *', '');
+  const ondeParou = s => (s.vistas || []).filter(k => k !== 'enviado').sort((a, b) => ORDEM.indexOf(b) - ORDEM.indexOf(a))[0] || 'nome';
+  function renderFunilFormulario(meses) {
+    const sec = $('#sec-form');
+    if (!sec) return;
+    if (!Store.podeLer('form_sessoes')) { sec.remove(); return; }
+    const ss = D.sessoes.filter(s => meses.includes(dates.ym(s.dia || s.inicio)));
+    const env = ss.filter(s => s.enviado), des = ss.filter(s => !s.enviado);
+    const pct = (a, b) => b ? fmt.pct(Math.round(a / b * 1000) / 10) : '—';
+    const contato = des.filter(s => ['situacao_delivery', 'vende_apps', 'pedidos_mes', 'nome_loja', 'prazo_inicio', 'ideia'].includes(ondeParou(s))).length;
+    Dash.kpis('#k-form', [
+      { label: 'Abriram o formulário', value: fmt.num(ss.length, 0), sub: 'visitas medidas pergunta a pergunta' },
+      { label: 'Enviaram', value: fmt.num(env.length, 0), sub: `${pct(env.length, ss.length)} de conclusão` },
+      { label: 'Desistiram nos dados de contato', value: fmt.num(des.length - contato, 0), sub: 'pararam em nome, telefone ou e-mail' },
+      { label: 'Desistiram na qualificação', value: fmt.num(contato, 0), sub: 'já tinham passado pelos dados de contato' },
+    ]);
+    const chegou = ORDEM.map(k => ss.filter(s => (s.vistas || []).includes(k)).length);
+    Dash.bar('c-form-funil', { labels: PERGUNTAS.map(p => p[1]), horizontal: true,
+      datasets: [{ label: 'Pessoas', data: chegou }],
+      afterLabel: (v) => ss.length ? `${pct(v, ss.length)} de quem abriu` : '' });
+    const ops = ['Já vendo por delivery', 'Parei com o delivery', 'Nunca vendi'];
+    const resp = ss.filter(s => s.respostas?.situacao_delivery);
+    Dash.bar('c-form-qualif', { labels: ops, horizontal: true, stacked: true, datasets: [
+      { label: 'Enviaram', color: Dash.css('--good'), data: ops.map(o => resp.filter(s => s.respostas.situacao_delivery === o && s.enviado).length) },
+      { label: 'Desistiram', color: Dash.css('--critical'), data: ops.map(o => resp.filter(s => s.respostas.situacao_delivery === o && !s.enviado).length) },
+    ] });
+    const tempo = s => { const seg = Math.max(0, (new Date(s.atualizado) - new Date(s.inicio)) / 1000); return seg < 60 ? `${Math.round(seg)} s` : `${Math.round(seg / 60)} min`; };
+    const qualif = s => Object.values(s.respostas || {}).join(' · ') || '—';
+    $('#t-form').innerHTML = [...des].sort((a, b) => String(b.inicio).localeCompare(String(a.inicio))).slice(0, 100).map(s => `<tr>
+      <td>${esc(fmt.dateTime(s.inicio))}</td><td>${esc(rotulo(ondeParou(s)))}</td><td>${esc(s.utm_source || 'Sem UTM')}</td>
+      <td>${esc(s.dispositivo || '—')}</td><td class="quebra">${esc(qualif(s))}</td><td class="num">${tempo(s)}</td></tr>`).join('')
+      || '<tr><td colspan="6" class="empty">Ninguém desistiu no período (ou a medição ainda não tem dados).</td></tr>';
   }
 
   // ---------- início ----------

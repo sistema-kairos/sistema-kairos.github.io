@@ -808,3 +808,4 @@ table.data td.neg { color: var(--critical-text); font-weight: 600; }
 .evo-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .evo-head h2 { font-size: var(--fs-lg); }
 .evo-tab td:first-child { white-space: normal; min-width: 160px; }
+table.data td.quebra { white-space: normal; min-width: 180px; }

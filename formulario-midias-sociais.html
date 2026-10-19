@@ -167,8 +167,8 @@
     <button id="next" aria-label="Próxima pergunta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
   </div>
 
-  <script src="config.js?v=202610101700"></script>
-  <script src="store.js?v=202610101700"></script>
+  <script src="config.js?v=202610191300"></script>
+  <script src="store.js?v=202610191300"></script>
   <script>
     const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
     const ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
@@ -217,11 +217,14 @@
     const params = new URLSearchParams(location.search);
     ['utm_source', 'utm_medium', 'utm_campaign'].forEach(k => { if (params.get(k)) answers[k] = params.get(k); });
 
+    // quem está logado no sistema (equipe testando o formulário) não entra nas métricas de visitantes
+    const INTERNO = (() => { try { return !!localStorage.getItem('gh_session'); } catch { return false; } })();
+
     // visitantes (indicador de MKT): conta este navegador uma vez por dia
     (() => {
       try {
         const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-        if (!Store.isRemote() || localStorage.getItem('orion_visita') === hoje) return;
+        if (INTERNO || !Store.isRemote() || localStorage.getItem('orion_visita') === hoje) return;
         const s = Store.settings();
         fetch(`${s.supabaseUrl}/rest/v1/rpc/registrar_visita`, {
           method: 'POST', keepalive: true,
@@ -230,6 +233,24 @@
         }).then(r => { if (r.ok) localStorage.setItem('orion_visita', hoje); }).catch(() => {});
       } catch { /* sem localStorage: não conta, mas o formulário segue normal */ }
     })();
+
+    // funil do formulário (Dashboard MKT): registra até que pergunta a pessoa chegou, sem nome, telefone, e-mail ou textos.
+    // Das respostas, só as opções de qualificação (situação do delivery, apps, pedidos/mês e prazo).
+    const SESSAO = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16)));
+    const ESCOLHAS = ['situacao_delivery', 'vende_apps', 'pedidos_mes', 'prazo_inicio'];
+    function registrarEtapa(etapa) {
+      if (INTERNO || !Store.isRemote()) return;
+      try {
+        const s = Store.settings();
+        const respostas = Object.fromEntries(ESCOLHAS.filter(k => answers[k]).map(k => [k, answers[k]]));
+        fetch(`${s.supabaseUrl}/rest/v1/rpc/registrar_etapa`, {
+          method: 'POST', keepalive: true,
+          headers: { apikey: s.supabaseAnonKey, Authorization: `Bearer ${s.supabaseAnonKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessao: SESSAO, dados: { etapa, respostas, utm_source: answers.utm_source, utm_campaign: answers.utm_campaign,
+            dispositivo: matchMedia('(pointer: coarse)').matches ? 'celular' : 'computador' } }),
+        }).catch(() => {});
+      } catch { /* métrica não pode atrapalhar o formulário */ }
+    }
 
     const stage = document.getElementById('stage');
     const visible = () => STEPS.filter(s => !s.skip || !s.skip(answers));
@@ -312,6 +333,7 @@
       const step = STEPS[current];
       show(slideHTML(step), dir, el => bind(el, step));
       updateChrome();
+      registrarEtapa(step.key);
     }
 
     function bind(el, step) {
@@ -453,6 +475,7 @@
         return;
       }
       sent = true;
+      registrarEtapa('enviado');
       const nome = primeiroNome(answers);
       show(`<div class="q done">
           <div class="badge-ok">${ICON_CHECK}</div>
