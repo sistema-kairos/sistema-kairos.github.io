@@ -52,6 +52,11 @@
       ind('cpa', 'CPA', 'moeda', 'formula', { formula: 'investimento / vendas', melhor: 'menor' }),
       ind('cpm', 'CPM', 'moeda', 'formula', { formula: 'investimento / impressoes * 1000', melhor: 'menor' }),
       ind('taxa_retorno', 'Taxa de retorno (ROI)', 'pct', 'formula', { formula: '(receita_vendas - investimento) / investimento * 100' }),
+      // custo de aquisição (usado também pela Calculadora de margem)
+      ind('custo_comercial', 'Custo comercial (equipe e ferramentas)', 'moeda', 'manual', { melhor: '' }),
+      ind('vendas_total', 'Vendas totais (todas as fontes)', 'numero', 'auto', { fonte: 'crm.fechadas' }),
+      ind('cac_comercial', 'Custo comercial por cliente', 'moeda', 'formula', { formula: 'custo_comercial / vendas_total', melhor: 'menor' }),
+      ind('cac_total', 'Custo de aquisição por cliente (CAC)', 'moeda', 'formula', { formula: 'cpa + cac_comercial', melhor: 'menor' }),
       // e-mail marketing (lançado à mão até a automação com a ferramenta de e-mail)
       ind('emails_entregues', 'E-mails entregues', 'numero', 'manual'),
       ind('emails_abertos', 'E-mails abertos', 'numero', 'manual'),

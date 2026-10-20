@@ -9,6 +9,10 @@
 //   mão de obra = custo/pedido × pedidos       ocupação = custo/m² × m²
 //   lucro bruto = líquida − CSP − mão de obra − ocupação                    margem bruta = lucro bruto ÷ bruta
 //   comissão = mensalidade × alíquota%         margem de contribuição = lucro bruto − comissão (÷ bruta)
+// Custo de aquisição (CAC), por cliente conquistado — automático a partir dos Indicadores de MKT (últimos 3 meses lançados):
+//   marketing = investimento em mídia ÷ vendas de leads de marketing      comercial = custo comercial ÷ vendas totais
+//   CAC por mês = CAC ÷ meses de diluição      margem após aquisição = margem de contribuição − CAC por mês
+//   payback = CAC ÷ margem de contribuição (meses para recuperar o custo de conquistar o cliente)
 (() => {
   if (window.SEM_ACESSO) return;
 
@@ -40,7 +44,7 @@
       { k: 'comissao', nome: 'Comissão', conta: 'Comissões', nota: 'Alíquota da comissão comercial sobre a mensalidade', tipo: 'pct', label: 'Alíquota (% sobre mensalidade)', padrao: { pct: 5 } },
     ] },
   ];
-  const premissasPadrao = () => Object.fromEntries(PREMISSAS.flatMap(s => s.itens).map(i => [i.k, { ...i.padrao }]));
+  const premissasPadrao = () => ({ ...Object.fromEntries(PREMISSAS.flatMap(s => s.itens).map(i => [i.k, { ...i.padrao }])), cac: { meses: 12 } });
   const plano = (nome, venda, pedidos, skus, mensalidade, aliq, vpp, freezers, microondas, m2) =>
     ({ id: Store.uid(), nome, venda, pedidos, skus, mensalidade, aliq, vpp, freezers, microondas, m2, cnpjs: 1 });
   const planosPadrao = () => [
@@ -51,6 +55,40 @@
     plano('1 Freezer + 2 Microondas', 40245, 1190, 25, 2610, 10, 1.1, 1, 2, 2),
   ];
   const cenarioPadrao = () => ({ id: 'c_' + Store.uid(), nome: 'DS · HUB1', premissas: premissasPadrao(), planos: planosPadrao(), criado_em: new Date().toISOString() });
+
+  // ---------- custo de aquisição a partir dos Indicadores de MKT ----------
+  // mesma regra de indicadores.js: "lead de marketing" = negociação que não veio de prospecção ativa;
+  // venda = negociação que entrou em "Negócio fechado" no mês. Valor lançado em Indicadores prevalece sobre o do CRM.
+  let cacAuto = { marketing: null, comercial: null, meses: [], aviso: 'Carregando os indicadores de MKT…' };
+  async function carregarCAC() {
+    try {
+      const [ind, crm] = await Promise.all([Store.list('ind_mkt'), Store.list('crm')]);
+      const ehMkt = d => !/prospec/i.test(d.fonte || '');
+      const fechouEm = (d, ym) => (d.historico || []).some(h => h.etapa === 'Negócio fechado' && dates.ym(h.em) === ym);
+      const val = (r, k) => isBlank(r.valores?.[k]) ? null : Number(r.valores[k]);
+      const meses = ind.filter(r => /^\d{4}-\d{2}$/.test(r.id) && (val(r, 'investimento') !== null || val(r, 'custo_comercial') !== null))
+        .sort((a, b) => a.id.localeCompare(b.id)).slice(-3);
+      if (!meses.length) { cacAuto = { marketing: null, comercial: null, meses: [], aviso: 'Ainda não há investimento em mídia nem custo comercial lançados em Indicadores de MKT.' }; return; }
+      let inv = 0, vm = 0, cc = 0, vt = 0, temCC = false;
+      meses.forEach(r => {
+        inv += val(r, 'investimento') || 0;
+        if (val(r, 'custo_comercial') !== null) { cc += val(r, 'custo_comercial'); temCC = true; }
+        vm += val(r, 'vendas') ?? crm.filter(d => ehMkt(d) && fechouEm(d, r.id)).length;
+        vt += val(r, 'vendas_total') ?? crm.filter(d => fechouEm(d, r.id)).length;
+      });
+      const avisos = [];
+      if (!vm) avisos.push('sem vendas de marketing nos meses lançados');
+      if (!temCC) avisos.push('custo comercial ainda não lançado');
+      else if (!vt) avisos.push('sem vendas nos meses lançados');
+      cacAuto = { marketing: vm ? inv / vm : null, comercial: temCC && vt ? cc / vt : null, meses: meses.map(r => r.id),
+        inv, vm, cc, vt, aviso: avisos.join(' · ') };
+    } catch (e) { cacAuto = { marketing: null, comercial: null, meses: [], aviso: 'Não foi possível ler os indicadores de MKT: ' + e.message }; }
+  }
+  // valor usado na conta: o digitado no cenário (se houver) ou o automático
+  const cacConfig = () => atual.premissas.cac || (atual.premissas.cac = { meses: 12 });
+  const cacValor = k => !isBlank(cacConfig()[k]) ? n(cacConfig()[k]) : n(cacAuto[k]);
+  const cacMeses = () => Math.max(1, n(cacConfig().meses) || 12);
+  const periodoCAC = () => cacAuto.meses.length ? cacAuto.meses.map(m => fmt.month(m)).filter((v, i, a) => i === 0 || i === a.length - 1).join(' a ') : '';
 
   // ---------- estado ----------
   let cenarios = [];
@@ -83,7 +121,10 @@
     const lucro = liquida - csp - mo - ocup;
     const comissao = n(p.mensalidade) * com;
     const mc = lucro - comissao;
-    return { ticket, recVar, bruta, imposto, liquida, aluguel, energia, micro, software, csp, mo, ocup, lucro, mb: bruta ? lucro / bruta : NaN, comissao, mc, mcp: bruta ? mc / bruta : NaN };
+    const cacMk = cacValor('marketing'), cacCo = cacValor('comercial'), cac = cacMk + cacCo;
+    const cacMes = cac / cacMeses(), mca = mc - cacMes;
+    return { ticket, recVar, bruta, imposto, liquida, aluguel, energia, micro, software, csp, mo, ocup, lucro, mb: bruta ? lucro / bruta : NaN, comissao, mc, mcp: bruta ? mc / bruta : NaN,
+      cacMk, cacCo, cac, cacMes, mca, mcap: bruta ? mca / bruta : NaN, payback: mc > 0 ? cac / mc : NaN };
   }
 
   // ---------- telas ----------
@@ -110,6 +151,10 @@
       <div class="affix">${pre ? `<span>${pre}</span>` : ''}<input class="input" data-f="${f}" inputmode="decimal" value="${numIn(p[f])}" ${dis}>${suf ? `<span>${suf}</span>` : ''}</div>
       ${ajuda ? `<small>${ajuda}</small>` : ''}</label>`;
     const outro = freezerOutro || !FREEZER_OPC.some(([v]) => v === n(p.freezers));
+    const campoCAC = (k, label, ajuda) => `<label class="mg-f"><span>${label}</span>
+      <div class="affix"><span>R$</span><input class="input" data-cac="${k}" inputmode="decimal" value="${numIn(cacConfig()[k])}"
+        placeholder="${cacAuto[k] === null ? '' : numIn(Math.round(cacAuto[k] * 100) / 100)}" ${dis}></div>
+      <small>${isBlank(cacConfig()[k]) ? (cacAuto[k] === null ? 'sem dado automático' : 'automático: ' + ajuda) : 'valor digitado (automático: ' + (cacAuto[k] === null ? 'sem dado' : brl(cacAuto[k])) + ')'}</small></label>`;
     $('#mg-conteudo').innerHTML = `
       <section class="card mg-escolha">
         <h2>O que você está calculando?</h2>
@@ -147,6 +192,15 @@
               ${campo('aliq', 'Percentual sobre as vendas', '', '', '%')}
               ${campo('vpp', 'Valor por pedido', '', 'R$')}
             </div></section>
+          <section class="card mg-bloco"><h3>Custo de aquisição</h3>
+            <p class="muted small mg-nota">Quanto custa conquistar um cliente. Vem automático dos <a href="indicadores.html?area=mkt">Indicadores de MKT</a>${periodoCAC() ? ` (${esc(periodoCAC())})` : ''}; digite um valor para usar outro (apague para voltar ao automático). Vale para todos os planos deste cenário.</p>
+            <div class="mg-grid">
+              ${campoCAC('marketing', 'Custo de marketing por cliente', 'investimento em mídia ÷ vendas de marketing')}
+              ${campoCAC('comercial', 'Custo comercial por cliente', 'custo comercial ÷ vendas totais')}
+              <label class="mg-f"><span>Diluir em</span><div class="affix"><input class="input" data-cac="meses" inputmode="decimal" value="${numIn(cacConfig().meses)}" ${dis}><span>meses</span></div>
+                <small>tempo esperado do cliente na base</small></label>
+            </div>
+            ${cacAuto.aviso ? `<p class="small mg-aviso">${esc(cacAuto.aviso)}</p>` : ''}</section>
           ${canEdit && atual.planos.length > 1 ? '<button class="btn ghost small danger mg-excluir" id="mg-excluir-plano">Excluir este plano</button>' : ''}
         </div>
         <aside class="card mg-result" id="mg-result" aria-live="polite"></aside>
@@ -188,6 +242,13 @@
         <li class="sobra"><div class="mg-bl"><span>Sobra (margem de contribuição)</span><b>${brl(r.mc)}</b></div>
           <div class="mg-track"><span style="width:${larg(r.mc)}%"></span></div><small>${pct1(r.mcp)} da receita</small></li>
       </ul>
+      <h4>Custo de aquisição</h4>
+      <div class="mg-sub">
+        <div><span>Conquistar este cliente</span><b>${brl(r.cac)}</b><small>${brl(r.cacMk)} marketing + ${brl(r.cacCo)} comercial</small></div>
+        <div><span>Recupera em</span><b>${isFinite(r.payback) ? (r.payback < 0.1 ? 'menos de 1 mês' : r.payback.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + (r.payback <= 1 ? ' mês' : ' meses')) : '—'}</b><small>${isFinite(r.payback) ? 'pela margem de contribuição' : 'margem de contribuição negativa'}</small></div>
+      </div>
+      <div class="mg-apos ${r.mca < 0 ? 'neg' : ''}"><span>Margem após aquisição</span><b>${brl(r.mca)} por mês · ${pct1(r.mcap)}</b>
+        <small>margem de contribuição − ${brl(r.cacMes)} por mês (aquisição diluída em ${fmt.num(cacMeses(), 0)} meses)</small></div>
       <details class="mg-conta"><summary>Ver a conta completa</summary>
         <table>${LINHAS.filter(l => l.secao || (l.calc && l.label !== 'Ticket médio por pedido')).map(l => l.secao
           ? `<tr class="sec"><th colspan="2">${esc(l.secao)}</th></tr>`
@@ -213,6 +274,11 @@
       if (i.dataset.f === 'nome') { const c = $(`.mg-chip[data-sel="${CSS.escape(p.id)}"]`); if (c) c.textContent = i.value || 'Sem nome'; }
       atualizarCalc(); salvar();
     }));
+    $$('[data-cac]').forEach(i => i.addEventListener('input', () => {
+      cacConfig()[i.dataset.cac] = parse.num(i.value);
+      atualizarCalc(); salvar();
+    }));
+    $$('[data-cac]').forEach(i => i.addEventListener('change', () => renderCalc()));
     $$('[data-freezer]').forEach(b => b.addEventListener('click', () => {
       if (b.dataset.freezer === 'outro') freezerOutro = true;
       else { freezerOutro = false; p.freezers = Number(b.dataset.freezer); salvar(); }
@@ -303,6 +369,14 @@
     { calc: r => neg(r.comissao), label: '(−) Comissão' },
     { calc: r => brl(r.mc), label: '(=) Margem de contribuição', destaque: true },
     { calc: r => pct1(r.mcp), label: '(%) Margem de contribuição', destaque: true },
+    { secao: 'Custo de aquisição' },
+    { calc: r => neg(r.cacMk), label: '(−) Custo de marketing por cliente', ajuda: 'Indicadores de MKT: investimento em mídia ÷ vendas de leads de marketing.' },
+    { calc: r => neg(r.cacCo), label: '(−) Custo comercial por cliente', ajuda: 'Indicadores de MKT: custo comercial ÷ vendas totais.' },
+    { calc: r => neg(r.cac), label: '(=) Custo de aquisição (CAC)' },
+    { calc: r => neg(r.cacMes), label: '(−) CAC diluído por mês' },
+    { calc: r => brl(r.mca), label: '(=) Margem após aquisição', destaque: true },
+    { calc: r => pct1(r.mcap), label: '(%) Margem após aquisição', destaque: true },
+    { calc: r => isFinite(r.payback) ? r.payback.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' meses' : '—', label: 'Payback do CAC', ajuda: 'Meses de margem de contribuição para recuperar o custo de conquistar o cliente.' },
   ];
 
   function renderComparar() {
@@ -412,6 +486,8 @@
     // cenários antigos sem algum campo novo recebem o padrão
     cenarios.forEach(c => { c.premissas = { ...premissasPadrao(), ...(c.premissas || {}) }; if (!c.planos?.length) c.planos = planosPadrao(); });
     atual = cenarios[0];
+    render();
+    await carregarCAC();
     render();
   })();
 })();

@@ -809,3 +809,12 @@ table.data td.neg { color: var(--critical-text); font-weight: 600; }
 .evo-head h2 { font-size: var(--fs-lg); }
 .evo-tab td:first-child { white-space: normal; min-width: 160px; }
 table.data td.quebra { white-space: normal; min-width: 180px; }
+/* Calculadora: custo de aquisição */
+.mg-nota { margin: -4px 0 4px; }
+.mg-aviso { margin: 12px 0 0; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--warning-bg); color: var(--warning-text); }
+.mg-apos { background: var(--accent-50); border-radius: var(--radius-md); padding: 12px 14px; display: grid; gap: 2px; }
+.mg-apos span { font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: var(--ls-caps); color: var(--text-2); font-weight: 600; }
+.mg-apos b { font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+.mg-apos small { font-size: var(--fs-2xs); color: var(--muted); }
+.mg-apos.neg { background: var(--critical-bg); }
+.mg-apos.neg b { color: var(--critical-text); }
