@@ -72,6 +72,7 @@ const LEADS_FIELDS = [
   { key: 'telefone', label: 'Telefone', type: 'tel', list: true },
   { key: 'email', label: 'E-mail', type: 'email', list: true },
   { key: 'nome_loja', label: 'Loja / empresa', type: 'text', list: true },
+  { key: 'objetivo', label: 'Objetivo', type: 'select', options: ['Ganhar comodidade e tempo livre', 'Vender em novos bairros', 'Entregar mais rápido e com frete mais barato para o cliente', 'Testar uma nova marca ou produto', 'Tirar o delivery da minha loja'], list: true },
   { key: 'situacao_delivery', label: 'Delivery hoje', type: 'select', options: ['Já vendo por delivery', 'Parei com o delivery', 'Nunca vendi'], list: true },
   { key: 'vende_apps', label: 'Vende em apps', type: 'select', options: ['Sim, vendo nos apps', 'Não vendo por apps'], list: true },
   { key: 'pedidos_mes', label: 'Pedidos/mês', type: 'select', options: ['Mais de 400 pedidos', 'De 150 a 400', 'De 60 a 150', 'Menos de 60'], list: true },

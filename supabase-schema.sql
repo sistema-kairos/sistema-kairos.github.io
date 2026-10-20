@@ -138,7 +138,7 @@ as $$
 declare
   novo_id text := gen_random_uuid()::text;
   crm_id text := gen_random_uuid()::text;
-  campos text[] := array['nome', 'telefone', 'email', 'situacao_delivery', 'vende_apps', 'pedidos_mes',
+  campos text[] := array['nome', 'telefone', 'email', 'objetivo', 'situacao_delivery', 'vende_apps', 'pedidos_mes',
                          'nome_loja', 'prazo_inicio', 'ideia', 'utm_source', 'utm_medium', 'utm_campaign'];
   limpo jsonb := '{}'::jsonb;
   c text;
@@ -169,6 +169,7 @@ begin
     'fonte', 'Formulário - Mídias sociais' || coalesce(' (' || (limpo->>'utm_source') || ')', ''),
     'campanha', limpo->>'utm_campaign',
     'num_pedidos', limpo->>'pedidos_mes',
+    'objetivo', limpo->>'objetivo',
     'situacao_delivery', limpo->>'situacao_delivery',
     'vende_apps', limpo->>'vende_apps',
     'prazo_inicio', limpo->>'prazo_inicio',
@@ -424,8 +425,8 @@ select cron.schedule('teste_formulario_concluir', '3 12 * * *', 'select privado.
 create or replace function public.registrar_etapa(sessao text, dados jsonb)
 returns void language plpgsql security definer set search_path = public as $$
 declare
-  etapas text[] := array['nome', 'telefone', 'email', 'situacao_delivery', 'vende_apps', 'pedidos_mes', 'nome_loja', 'prazo_inicio', 'ideia', 'enviado'];
-  escolhas text[] := array['situacao_delivery', 'vende_apps', 'pedidos_mes', 'prazo_inicio'];
+  etapas text[] := array['intro', 'objetivo', 'nome', 'telefone', 'email', 'situacao_delivery', 'vende_apps', 'pedidos_mes', 'nome_loja', 'prazo_inicio', 'ideia', 'enviado'];
+  escolhas text[] := array['objetivo', 'situacao_delivery', 'vende_apps', 'pedidos_mes', 'prazo_inicio'];
   etapa text := dados->>'etapa';
   atual jsonb;
   resp jsonb := '{}'::jsonb;

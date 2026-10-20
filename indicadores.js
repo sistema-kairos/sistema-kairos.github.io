@@ -593,12 +593,14 @@
   }
 
   // ---------- funil do formulário (form_sessoes) ----------
-  const PERGUNTAS = [['nome', 'Nome'], ['telefone', 'Telefone'], ['email', 'E-mail'], ['situacao_delivery', 'Situação do delivery'],
+  // ordem atual do formulário: 2 páginas de valor, qualificação e, no fim, os dados de contato
+  const PERGUNTAS = [['intro', 'Apresentação'], ['objetivo', 'Objetivo'], ['situacao_delivery', 'Situação do delivery'],
     ['vende_apps', 'Vende por apps? *'], ['pedidos_mes', 'Pedidos por mês *'], ['nome_loja', 'Nome da loja'], ['prazo_inicio', 'Quando quer começar'],
-    ['ideia', 'Ideia de negócio'], ['enviado', 'Enviou']];
+    ['ideia', 'Ideia de negócio'], ['nome', 'Nome'], ['telefone', 'Telefone'], ['email', 'E-mail'], ['enviado', 'Enviou']];
+  const CONTATO = ['nome', 'telefone', 'email'];
   const ORDEM = PERGUNTAS.map(p => p[0]);
   const rotulo = k => (PERGUNTAS.find(p => p[0] === k) || [k, k])[1].replace(' *', '');
-  const ondeParou = s => (s.vistas || []).filter(k => k !== 'enviado').sort((a, b) => ORDEM.indexOf(b) - ORDEM.indexOf(a))[0] || 'nome';
+  const ondeParou = s => (s.vistas || []).filter(k => k !== 'enviado').sort((a, b) => ORDEM.indexOf(b) - ORDEM.indexOf(a))[0] || 'intro';
   function renderFunilFormulario(meses) {
     const sec = $('#sec-form');
     if (!sec) return;
@@ -606,12 +608,12 @@
     const ss = D.sessoes.filter(s => meses.includes(dates.ym(s.dia || s.inicio)));
     const env = ss.filter(s => s.enviado), des = ss.filter(s => !s.enviado);
     const pct = (a, b) => b ? fmt.pct(Math.round(a / b * 1000) / 10) : '—';
-    const contato = des.filter(s => ['situacao_delivery', 'vende_apps', 'pedidos_mes', 'nome_loja', 'prazo_inicio', 'ideia'].includes(ondeParou(s))).length;
+    const noContato = des.filter(s => CONTATO.includes(ondeParou(s))).length;
     Dash.kpis('#k-form', [
       { label: 'Abriram o formulário', value: fmt.num(ss.length, 0), sub: 'visitas medidas pergunta a pergunta' },
       { label: 'Enviaram', value: fmt.num(env.length, 0), sub: `${pct(env.length, ss.length)} de conclusão` },
-      { label: 'Desistiram nos dados de contato', value: fmt.num(des.length - contato, 0), sub: 'pararam em nome, telefone ou e-mail' },
-      { label: 'Desistiram na qualificação', value: fmt.num(contato, 0), sub: 'já tinham passado pelos dados de contato' },
+      { label: 'Desistiram antes do contato', value: fmt.num(des.length - noContato, 0), sub: 'na apresentação, no objetivo ou na qualificação' },
+      { label: 'Desistiram nos dados de contato', value: fmt.num(noContato, 0), sub: 'pararam em nome, telefone ou e-mail' },
     ]);
     const chegou = ORDEM.map(k => ss.filter(s => (s.vistas || []).includes(k)).length);
     Dash.bar('c-form-funil', { labels: PERGUNTAS.map(p => p[1]), horizontal: true,

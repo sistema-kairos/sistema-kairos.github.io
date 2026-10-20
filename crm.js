@@ -475,6 +475,7 @@
           ${kv('Instagram', 'instagram', d, 'text', { placeholder: '@perfil' })}
           ${kv('Número de pedidos', 'num_pedidos', d, 'select', { options: PEDIDOS })}
           ${kv('Interesse em', 'interesse', d)}
+          ${kv('Objetivo', 'objetivo', d, 'select', { options: ['Ganhar comodidade e tempo livre', 'Vender em novos bairros', 'Entregar mais rápido e com frete mais barato para o cliente', 'Testar uma nova marca ou produto', 'Tirar o delivery da minha loja'] })}
           ${kv('Delivery hoje', 'situacao_delivery', d, 'select', { options: ['Já vendo por delivery', 'Parei com o delivery', 'Nunca vendi'] })}
           ${kv('Vende em apps', 'vende_apps', d, 'select', { options: ['Sim, vendo nos apps', 'Não vendo por apps'] })}
           ${kv('Quer começar', 'prazo_inicio', d, 'select', { options: ['Imediatamente', 'Entre 1 e 3 meses', 'Acima de 3 meses'] })}
