@@ -93,9 +93,44 @@
   const tituloTarefa = t => t.titulo || t.tipo;
 
   // ---------- dados ----------
+  // ---------- responsável pelos leads do formulário (config/crm_leads, lido pelo banco ao receber cada resposta) ----------
+  let donoLeads = null;
+  function mostrarDonoLeads() {
+    const b = $('#dono-leads');
+    if (b) b.textContent = `Leads do formulário: ${donoLeads?.responsavel || 'ninguém'}`;
+  }
+  $('#dono-leads')?.addEventListener('click', async () => {
+    if (!Store.isAdmin()) return toast(`Os leads do formulário caem para ${donoLeads?.responsavel || 'ninguém'}. Só administradores podem alterar.`);
+    let perfis = [];
+    try { perfis = await Store.list('perfis'); } catch {}
+    const nomeDe = p => p.nome || p.id.split('@')[0];
+    const pessoas = perfis.filter(p => p.papel !== 'Espectador').sort((a, b) => nomeDe(a).localeCompare(nomeDe(b)));
+    const atual = donoLeads?.responsavel || '';
+    openModal({
+      title: 'Leads do formulário',
+      body: `<p>As respostas do formulário entram no CRM já com este responsável. Vale para os próximos leads; os que já estão no CRM não mudam.</p>
+        <label class="field"><span>Responsável</span><select class="input" id="dono-sel">
+          <option value="">Ninguém (sem responsável)</option>
+          ${pessoas.map(p => `<option value="${esc(p.id)}" ${nomeDe(p) === atual ? 'selected' : ''}>${esc(nomeDe(p))}${p.area ? ' · ' + esc(p.area) : ''}</option>`).join('')}
+        </select></label>`,
+      actions: [
+        { label: 'Cancelar', cls: 'ghost' },
+        { label: 'Salvar', cls: 'primary', onClick: async () => {
+          const id = document.getElementById('dono-sel').value, p = pessoas.find(x => x.id === id);
+          donoLeads = { id: 'crm_leads', responsavel: p ? nomeDe(p) : '', email: p ? p.id : '' };
+          await Store.save('config', donoLeads);
+          mostrarDonoLeads();
+          toast(p ? `Os próximos leads do formulário vão para ${nomeDe(p)}` : 'Os próximos leads do formulário chegam sem responsável', 'ok');
+        } },
+      ],
+    });
+  });
+
   async function load() {
     try { deals = await Store.list('crm'); }
     catch (e) { toast('Erro ao carregar o CRM: ' + e.message, 'error'); deals = []; }
+    donoLeads = await Store.get('config', 'crm_leads').catch(() => null);
+    mostrarDonoLeads();
     fillFilters();
     render();
   }

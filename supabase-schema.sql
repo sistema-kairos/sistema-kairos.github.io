@@ -142,6 +142,8 @@ declare
                          'nome_loja', 'prazo_inicio', 'ideia', 'utm_source', 'utm_medium', 'utm_campaign'];
   limpo jsonb := '{}'::jsonb;
   c text;
+  -- responsável pelos leads do formulário, escolhido no CRM (registro config/crm_leads)
+  dono text := (select nullif(trim(data->>'responsavel'), '') from registros where tabela = 'config' and id = 'crm_leads');
   -- teste diário automático (Status dos Sistemas): grava e desfaz, sem entrar em Leads nem no CRM
   teste boolean := dados ? 'teste';
 begin
@@ -164,6 +166,7 @@ begin
   insert into registros (tabela, id, data, updated_at) values ('crm', crm_id, jsonb_strip_nulls(jsonb_build_object(
     'titulo', limpo->>'nome' || coalesce(' - ' || (limpo->>'nome_loja'), ''),
     'etapa', 'Sem contato',
+    'responsavel', dono,
     'etapa_desde', now(),
     'criado_em', now(),
     'fonte', 'Formulário - Mídias sociais' || coalesce(' (' || (limpo->>'utm_source') || ')', ''),
