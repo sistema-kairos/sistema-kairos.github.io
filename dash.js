@@ -87,7 +87,7 @@ const Dash = (() => {
 
   function kpis(el, items) {
     $(el).innerHTML = items.map(k => `
-      <div class="card kpi"><div class="label">${esc(k.label)}</div>
+      <div class="card kpi ${k.cls || ''}"><div class="label">${esc(k.label)}</div>
       <div class="value">${k.value}</div>${k.sub ? `<div class="sub">${k.sub}</div>` : ''}</div>`).join('');
   }
 

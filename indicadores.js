@@ -48,6 +48,7 @@
       ind('cliques', 'Cliques', 'numero', 'manual'),
       ind('ctr', 'CTR dos anúncios', 'pct', 'formula', { formula: 'cliques / impressoes * 100' }),
       ind('cpl', 'Custo por lead (CPL)', 'moeda', 'formula', { formula: 'investimento / leads', melhor: 'menor' }),
+      ind('cpl_maximo', 'CPL máximo', 'moeda', 'auto', { fonte: 'margem.cpl_maximo', melhor: '', agregacao: 'media' }),
       ind('cpc', 'CPC', 'moeda', 'formula', { formula: 'investimento / cliques', melhor: 'menor' }),
       ind('cpa', 'CPA', 'moeda', 'formula', { formula: 'investimento / vendas', melhor: 'menor' }),
       ind('cpm', 'CPM', 'moeda', 'formula', { formula: 'investimento / impressoes * 1000', melhor: 'menor' }),
@@ -138,6 +139,23 @@
         return ini && ini <= fim && !saiu.has(norm(c.nome_loja));
       }).length;
     } },
+    // CPL máximo = (margem de contribuição média × meses do cliente − custo comercial por cliente) × conversão lead → venda.
+    // A margem média e os meses vêm da Calculadora de margem (registro '_margem', publicado por ela nesta tabela);
+    // a conversão usa os últimos 3 meses até o mês, para não oscilar com poucos leads.
+    'margem.cpl_maximo': { nome: 'CPL máximo: (margem de contribuição × meses do cliente − custo comercial por cliente) × conversão lead → venda dos últimos 3 meses', tabelas: ['crm'],
+      calc: (D, ym) => {
+        const ref = D.margemRef;
+        if (!ref || !(Number(ref.mc_media) > 0)) return null;
+        const [y, mm] = ym.split('-').map(Number);
+        const de = dates.toISO(new Date(y, mm - 3, 1)).slice(0, 7);   // 2 meses antes
+        const meses = dates.monthRange(de, ym).filter(m => !antesDoInicio(m));
+        const soma = id => meses.reduce((s, m) => s + (valor(id, m) || 0), 0);
+        const leads = soma('leads'), vendas = soma('vendas');
+        if (!leads || !vendas) return null;
+        const cacMax = Number(ref.mc_media) * (Number(ref.meses) || 12);
+        const comercial = valor('cac_comercial', ym) || 0;
+        return Math.max(0, cacMax - comercial) * vendas / leads;
+      } },
     'config.faturamento_base': { nome: 'Faturamento mensal base (Configurações → Financeiro)', tabelas: [], calc: D => D.base },
   };
 
@@ -166,6 +184,7 @@
   let lancados = {};   // { 'AAAA-MM': { id: valor } }
   let D = { leads: [], crm: [], comercial: [], cs: [], visitas: [], sessoes: [], base: null };
   let inicio = INICIO_PADRAO;
+  let margemRef = null;   // { mc_media, meses, cenario, atualizado } publicado pela Calculadora de margem
   const antesDoInicio = ym => !!inicio && ym < inicio;
   let ano = Number(dates.today().slice(0, 4));
   let mesLanc = dates.today().slice(0, 7);
@@ -255,6 +274,7 @@
       const cfg = rows.find(r => r.id === '_config');
       indicadores = cfg?.indicadores?.length ? cfg.indicadores : structuredClone(PADRAO[AREA]);
       inicio = cfg && 'inicio' in cfg ? cfg.inicio : INICIO_PADRAO;
+      margemRef = rows.find(r => r.id === '_margem') || null;
       lancados = Object.fromEntries(rows.filter(r => /^\d{4}-\d{2}$/.test(r.id)).map(r => [r.id, r.valores || {}]));
     } catch (e) {
       toast('Erro ao carregar indicadores: ' + e.message, 'error');
@@ -266,7 +286,7 @@
     if (MODO === 'dashboard') { precisa.add('crm'); precisa.add('form_sessoes'); }   // leads por canal e funil do formulário
     const [leads, crm, comercial, cs, visitas, sessoes, fin] = await Promise.all([ler('leads'), ler('crm'), ler('comercial'), ler('cs'), ler('visitas'), ler('form_sessoes'),
       indicadores.some(i => i.fonte === 'config.faturamento_base') ? Store.get('config', 'financeiro').catch(() => null) : null]);
-    D = { leads, crm, comercial, cs, visitas, sessoes, base: Number(fin?.faturamentoMensalBase) || window.APP_CONFIG.faturamentoMensalBase || null };
+    D = { leads, crm, comercial, cs, visitas, sessoes, margemRef, base: Number(fin?.faturamentoMensalBase) || window.APP_CONFIG.faturamentoMensalBase || null };
     Object.keys(autoCache).forEach(k => delete autoCache[k]);
     if (!selecionado || !indicadores.some(i => i.id === selecionado)) selecionado = indicadores[0]?.id || null;
     render();
@@ -487,11 +507,28 @@
       const fs = i.tipo === 'formula' ? folhas(id).filter(f => indicadores.find(x => x.id === f)?.tipo === 'manual') : i.tipo === 'manual' ? [id] : [];
       falta = fs.length ? 'Aguardando lançamento em Indicadores' : 'Sem dados no período';
     }
+    if (id === 'cpl_maximo' && v === null) falta = !D.margemRef ? 'Abra a Calculadora de margem para gerar a referência' : 'Sem leads e vendas nos últimos 3 meses para calcular';
+    // CPL acima do máximo: cartão em amarelo (o aviso aparece no topo do dashboard)
+    const acima = id === 'cpl' && v !== null && cplMaxPeriodo() !== null && v > cplMaxPeriodo();
     return {
       label: label || i.nome,
+      cls: acima ? 'alerta' : '',
       value: `<span class="${st === 'hit' ? 'good' : st === 'miss' ? 'bad' : ''}">${fmtU(i.unidade, v)}</span>`,
-      sub: falta || [sub, !isBlank(i.meta) ? `Meta: ${fmtU(i.unidade, i.meta)}` : ''].filter(Boolean).join(' · '),
+      sub: acima ? `Acima do máximo de ${fmtU('moeda', cplMaxPeriodo())}` : falta || [sub, !isBlank(i.meta) ? `Meta: ${fmtU(i.unidade, i.meta)}` : ''].filter(Boolean).join(' · '),
     };
+  }
+  const cplMaxPeriodo = () => indicadores.some(x => x.id === 'cpl_maximo') ? valor('cpl_maximo', periodoDash) : null;
+  function alertaCPL() {
+    const box = $('#alerta-cpl');
+    if (!box) return;
+    const cpl = indicadores.some(x => x.id === 'cpl') ? valor('cpl', periodoDash) : null, max = cplMaxPeriodo();
+    if (cpl === null || max === null || cpl <= max) { box.hidden = true; return; }
+    const ref = D.margemRef || {};
+    box.hidden = false;
+    box.innerHTML = `<div><b>O CPL está acima do limite máximo: ${fmtU('moeda', cpl)} por lead, para um máximo de ${fmtU('moeda', max)}.</b>
+      <p>Com o custo atual, cada cliente conquistado custa mais do que a margem que ele gera em ${fmt.num(Number(ref.meses) || 12, 0)} meses. Ações devem ser tomadas para solucionar:
+      revisar ou pausar as campanhas com pior custo por lead, melhorar a conversão do formulário (veja "Onde as pessoas desistem") e acelerar o contato comercial com os leads.</p>
+      <small>CPL máximo = (margem de contribuição média de ${fmtU('moeda', Number(ref.mc_media))} × ${fmt.num(Number(ref.meses) || 12, 0)} meses − custo comercial por cliente) × conversão de lead em venda dos últimos 3 meses.</small></div>`;
   }
   const kpisDe = (el, lista) => Dash.kpis(el, lista.map(a => kpi(...a)).filter(Boolean));
 
@@ -506,9 +543,11 @@
       ['vendas', 'Vendas', 'negócios fechados'],
       ['taxa_conversao', 'Taxa de conversão', 'vendas ÷ leads'],
     ]);
+    alertaCPL();
     kpisDe('#k-midia', [
       ['investimento', 'Investimento'],
       ['cpl', 'Custo por lead (CPL)'],
+      ['cpl_maximo', 'CPL máximo', 'limite para a conta fechar'],
       ['cpc', 'CPC', 'custo por clique'],
       ['cpa', 'CPA', 'custo por venda'],
       ['cpm', 'CPM', 'custo por mil impressões'],

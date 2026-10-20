@@ -440,13 +440,35 @@
       datasets: partes.map(([l, k, cor]) => ({ label: l, color: Dash.css(cor), data: rs.map(r => Math.round(Math.max(0, r[k]) * 100) / 100) })) });
   }
 
+  // ---------- referência para o CPL máximo (Dashboard MKT) ----------
+  // A tabela 'margem' é só de administradores; o MKT recebe apenas a margem de contribuição média dos planos do
+  // cenário principal (o primeiro) e os meses de diluição, no registro '_margem' de ind_mkt.
+  let refPublicada = null;
+  async function publicarReferencia() {
+    if (!canEdit || !cenarios.length) return;
+    const c = cenarios[0], antes = atual;
+    atual = c;
+    const mcs = c.planos.map(p => calcular(p).mc);
+    const meses = cacMeses();
+    atual = antes;
+    const ref = { mc_media: Math.round(mcs.reduce((a, b) => a + b, 0) / (mcs.length || 1) * 100) / 100, meses, cenario: c.nome, planos: c.planos.length };
+    const chave = JSON.stringify(ref);
+    if (chave === refPublicada) return;
+    try {
+      const atualDb = await Store.get('ind_mkt', '_margem').catch(() => null);
+      if (atualDb && JSON.stringify({ mc_media: atualDb.mc_media, meses: atualDb.meses, cenario: atualDb.cenario, planos: atualDb.planos }) === chave) { refPublicada = chave; return; }
+      await Store.save('ind_mkt', { id: '_margem', ...ref, atualizado: new Date().toISOString() });
+      refPublicada = chave;
+    } catch { /* sem permissão ou offline: tenta de novo no próximo salvamento */ }
+  }
+
   // ---------- salvar / cenários ----------
   function salvar(imediato = false) {
     if (!canEdit) return;
     clearTimeout(timer);
     $('#estado').textContent = 'Salvando…';
     const go = async () => {
-      try { await Store.save(TABELA, atual); $('#estado').textContent = 'Salvo'; }
+      try { await Store.save(TABELA, atual); $('#estado').textContent = 'Salvo'; publicarReferencia(); }
       catch (e) { $('#estado').textContent = 'Erro ao salvar'; toast(e.message, 'error'); }
     };
     if (imediato) go(); else timer = setTimeout(go, 700);
@@ -489,5 +511,6 @@
     render();
     await carregarCAC();
     render();
+    publicarReferencia();
   })();
 })();

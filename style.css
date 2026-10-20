@@ -818,3 +818,10 @@ table.data td.quebra { white-space: normal; min-width: 180px; }
 .mg-apos small { font-size: var(--fs-2xs); color: var(--muted); }
 .mg-apos.neg { background: var(--critical-bg); }
 .mg-apos.neg b { color: var(--critical-text); }
+/* alerta de CPL acima do máximo (Dashboard MKT) */
+.kpi.alerta { background: var(--warning-bg); border-color: var(--warning); }
+.kpi.alerta .value, .kpi.alerta .sub { color: var(--warning-text); }
+.alerta-cpl { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning); border-left-width: 6px; }
+.alerta-cpl[hidden] { display: none; }
+.alerta-cpl p { margin: 6px 0; }
+.alerta-cpl small { opacity: .85; }
