@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Configurações · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610201600">
+  <link rel="stylesheet" href="style.css?v=202610261000">
 </head>
 <body data-page="config">
   <main class="content">
@@ -67,6 +67,15 @@
         </details>
       </section>
 
+      <section class="card" id="ms-card">
+        <h2>Avisos por e-mail · milestones dos clientes</h2>
+        <p>Quando um cliente atinge um milestone (CS → Milestones), estes endereços recebem o aviso para celebrar a conquista.
+          Deixe em branco para avisar todo o CS e os administradores.</p>
+        <label class="field wide"><span>Quem recebe (um e-mail por linha, ou separados por vírgula)</span>
+          <textarea class="input" id="ms-para" rows="3" placeholder="cs@orioncloudkitchens.com.br&#10;gestor@orioncloudkitchens.com.br"></textarea></label>
+        <div class="row"><button class="btn primary" id="ms-save">Salvar destinatários</button></div>
+      </section>
+
       <section class="card">
         <h2>Monitoramento dos sistemas</h2>
         <p>Defina como cada serviço é verificado. <strong>Manual</strong>: a equipe marca o status na tela.
@@ -98,12 +107,12 @@
       </section>
     </div>
   </main>
-  <script src="config.js?v=202610201600"></script>
-  <script src="store.js?v=202610201600"></script>
-  <script src="common.js?v=202610201600"></script>
-  <script src="monitor.js?v=202610201600"></script>
+  <script src="config.js?v=202610261000"></script>
+  <script src="store.js?v=202610261000"></script>
+  <script src="common.js?v=202610261000"></script>
+  <script src="monitor.js?v=202610261000"></script>
   <script>
-    const TABLES = ['comercial', 'crm', 'cs', 'leads', 'ind_mkt', 'ind_comercial', 'ind_cs', 'visitas', 'form_sessoes', 'sprints', 'margem', 'perfis', 'config', 'status', 'heartbeat'];
+    const TABLES = ['comercial', 'crm', 'cs', 'leads', 'ind_mkt', 'ind_comercial', 'ind_cs', 'milestones', 'milestone_avisos', 'visitas', 'form_sessoes', 'sprints', 'margem', 'perfis', 'config', 'status', 'heartbeat'];
     const s = Store.settings();
     $('#sb-url').value = s.supabaseUrl;
     $('#sb-key').value = s.supabaseAnonKey;
@@ -120,7 +129,22 @@
 
     // ---------- avisos por e-mail ----------
     const listaEmails = txt => [...new Set(txt.split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean))];
-    Store.get('config', 'notificacoes').catch(() => null).then(n => { $('#email-para').value = (n?.emails_aviso_previo || []).join('\n'); });
+    Store.get('config', 'notificacoes').catch(() => null).then(n => {
+      $('#email-para').value = (n?.emails_aviso_previo || []).join('\n');
+      $('#ms-para').value = (n?.emails_milestones || []).join('\n');
+    });
+    // salva só os campos alterados, sem apagar os demais (aviso prévio, milestones, endereço do site)
+    async function salvarNotificacoes(campos) {
+      const atual = await Store.get('config', 'notificacoes').catch(() => null) || {};
+      await Store.save('config', { ...atual, id: 'notificacoes', site_url: new URL('.', location.href).href, ...campos });
+    }
+    $('#ms-save').addEventListener('click', async e => {
+      const emails = listaEmails($('#ms-para').value);
+      e.target.disabled = true;
+      try { await salvarNotificacoes({ emails_milestones: emails }); $('#ms-para').value = emails.join('\n'); toast('Destinatários dos milestones salvos', 'ok'); }
+      catch (err) { toast(err.message, 'error'); }
+      finally { e.target.disabled = false; }
+    });
     async function statusEmail() {
       if (!Store.isRemote()) { $('#email-status').innerHTML = '<span class="badge warn">Disponível apenas com o Supabase configurado</span>'; return; }
       try {
@@ -139,7 +163,7 @@
       const ruins = emails.filter(x => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
       if (ruins.length) { toast('E-mail inválido: ' + ruins.join(', '), 'error'); return; }
       try {
-        await Store.save('config', { id: 'notificacoes', emails_aviso_previo: emails, site_url: new URL('.', location.href).href });
+        await salvarNotificacoes({ emails_aviso_previo: emails });
         $('#email-para').value = emails.join('\n');
         toast(emails.length ? `${emails.length} destinatário(s) salvo(s)` : 'Avisos desativados (nenhum destinatário)', 'ok');
       } catch (e) { toast(e.message, 'error'); }

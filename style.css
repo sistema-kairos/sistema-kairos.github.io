@@ -825,3 +825,26 @@ table.data td.quebra { white-space: normal; min-width: 180px; }
 .alerta-cpl[hidden] { display: none; }
 .alerta-cpl p { margin: 6px 0; }
 .alerta-cpl small { opacity: .85; }
+
+/* ---------- CS · Milestones ---------- */
+.ms-celebrar { display: grid; gap: 10px; margin-top: 16px; }
+.ms-item { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-left: 5px solid var(--accent); }
+.ms-item-txt { display: grid; gap: 2px; flex: 1; min-width: 200px; }
+.ms-item-txt b { font-size: var(--fs-md); }
+.ms-item-txt span { color: var(--text-2); }
+.ms-vazio { margin: 14px 4px 4px; }
+.ms-filtros { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 12px; }
+.ms-filtros h3 { margin: 0; }
+.ms-filtros .input { width: auto; max-width: 240px; }
+.ms-tab td { vertical-align: middle; }
+.ms-tab td:first-child { white-space: normal; min-width: 180px; }
+.ms-sub { display: block; font-size: var(--fs-xs); }
+.ms-chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--fs-sm); color: var(--good-text); background: var(--good-bg);
+  border-radius: 999px; padding: 3px 10px; font-variant-numeric: tabular-nums; }
+.ms-chip small { font-weight: 500; font-size: var(--fs-2xs); opacity: .8; }
+.ms-alt { font-size: var(--fs-xs); margin-left: 4px; }
+.ms-edit { display: flex; align-items: center; gap: 8px; }
+.ms-edit .input { width: 150px; padding: 5px 8px; }
+.ms-saiu td { opacity: .5; }
+.ms-legenda { padding: 10px 14px; margin: 0; border-top: 1px solid var(--border); }
+@media (max-width: 640px) { .ms-filtros .input { max-width: none; flex: 1 1 100%; } }

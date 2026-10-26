@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3c52">
+  <title>Milestones · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202610261000">
+</head>
+<body data-page="cs-milestones">
+  <main class="content ms-page">
+    <header class="page-head">
+      <div><h1>Milestones</h1><p>As conquistas de cada cliente. Quando um cliente chega em uma delas, o CS e o gestor são avisados para celebrar.</p></div>
+    </header>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lime">Celebrar</span><h2>Conquistas para celebrar</h2>
+        <span class="muted small">Marque como celebrada depois de fazer a ação com o cliente</span></div>
+      <div class="kpis main" id="k-ms"></div>
+      <div class="ms-celebrar" id="celebrar"></div>
+    </section>
+
+    <section class="card table-card">
+      <div class="card-titulo ms-filtros">
+        <h3>Todos os clientes</h3>
+        <span class="spacer"></span>
+        <input type="search" class="input" id="busca" placeholder="Buscar loja ou cliente…">
+        <select class="input" id="f-hub"><option value="">Todos os hubs</option></select>
+      </div>
+      <div class="table-wrap"><table class="data static ms-tab">
+        <thead><tr>
+          <th>Cliente</th><th>Dia da entrada</th><th>Primeiros 1.000 pedidos</th><th>Anos de Órion</th>
+          <th>R$ 1 milhão faturado</th><th>Abertura em novo hub</th><th>Marca Super</th>
+        </tr></thead>
+        <tbody id="t-ms"></tbody>
+      </table></div>
+      <p class="muted small ms-legenda">Dia da entrada, anos de Órion e abertura em outro hub (mesmo CNPJ ou mesmo cliente) são automáticos.
+        Os demais o CS lança a data em que o cliente chegou lá. O aviso por e-mail sai no mesmo dia, às 8h, ou na hora em que a data é lançada.</p>
+    </section>
+  </main>
+  <script src="config.js?v=202610261000"></script>
+  <script src="store.js?v=202610261000"></script>
+  <script src="common.js?v=202610261000"></script>
+  <script src="dash.js?v=202610261000"></script>
+  <script src="milestones.js?v=202610261000"></script>
+</body>
+</html>

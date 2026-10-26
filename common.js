@@ -157,6 +157,7 @@ const NAV = [
   { group: 'CS', area: 'CS', items: [
     { page: 'dash-cs', href: 'dashboard-cs.html', label: 'Dashboard CS' },
     { page: 'cs', href: 'cs.html', label: 'Solicitações de saída' },
+    { page: 'cs-milestones', href: 'cs-milestones.html', label: 'Milestones' },
     { page: 'ind-cs', href: 'indicadores.html?area=cs', label: 'Indicadores' },
   ] },
   { group: 'MKT', area: 'MKT', items: [

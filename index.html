@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b3c52">
   <title>Início · Órion</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="stylesheet" href="style.css?v=202610201600">
+  <link rel="stylesheet" href="style.css?v=202610261000">
 </head>
 <body data-page="inicio">
   <main class="content">
@@ -15,21 +15,23 @@
     </header>
     <section class="home-grid" id="home"></section>
   </main>
-  <script src="config.js?v=202610201600"></script>
-  <script src="store.js?v=202610201600"></script>
-  <script src="common.js?v=202610201600"></script>
-  <script src="monitor.js?v=202610201600"></script>
+  <script src="config.js?v=202610261000"></script>
+  <script src="store.js?v=202610261000"></script>
+  <script src="common.js?v=202610261000"></script>
+  <script src="monitor.js?v=202610261000"></script>
   <script>
     (async () => {
       if (window.SEM_ACESSO) return;
       const ler = t => Store.podeLer(t) ? Store.list(t) : Promise.resolve([]);
-      let comercial = [], cs = [], crm = [], leads = [], status = [], beats = [], cfg;
+      let comercial = [], cs = [], crm = [], leads = [], status = [], beats = [], cfg, marcos = [];
       try {
         [comercial, cs, crm, leads, status, beats, cfg] = await Promise.all([
           ler('comercial'), ler('cs'), ler('crm'), ler('leads'),
           // Status dos Sistemas é só para administradores
           Store.isAdmin() ? Store.list('status') : [], Store.isAdmin() ? Store.list('heartbeat') : [], Store.isAdmin() ? Monitor.loadConfig() : Monitor.DEFAULT]);
       } catch (e) { toast('Erro ao carregar dados: ' + e.message, 'error'); cfg = Monitor.DEFAULT; }
+      marcos = await ler('milestone_avisos').catch(() => []);
+      const celebrar = marcos.filter(m => !m.historico && !m.celebrado_em);
 
       const today = dates.today(), mes = today.slice(0, 7);
       const saiu = new Set(cs.filter(c => c.data_saida_prevista && c.data_saida_prevista <= today).map(c => norm(c.loja)));
@@ -52,6 +54,9 @@
         { area: 'Comercial', href: 'comercial.html', title: 'Comercial', value: fmt.num(ativos.length, 0) + ' clientes ativos', sub: `${novosMes} fechamentos neste mês` },
         { area: 'CS', href: 'cs.html', title: 'CS', value: prox30 + ' saídas em 30 dias', sub: `${pendAP} reuniões de A.P pendentes` },
         { area: 'Comercial', href: 'dashboard-comercial.html', title: 'Dashboard Comercial', value: fmt.moneyShort(somaMensalidades(ativos)), sub: 'em mensalidades fixas ativas/mês' },
+        { area: 'CS', href: 'cs-milestones.html', title: 'Milestones',
+          value: celebrar.length ? `<span class="badge warn">${celebrar.length} para celebrar</span>` : 'Tudo celebrado',
+          sub: celebrar.length ? esc(celebrar.slice(0, 2).map(m => `${m.loja}: ${m.rotulo}`).join(' · ')) : 'conquistas dos clientes' },
         { area: 'CS', href: 'dashboard-cs.html', title: 'Dashboard CS', value: cs.length + ' solicitações', sub: 'de saída registradas no total' },
         { area: 'MKT', href: 'leads.html', title: 'Leads do formulário', value: leads.length + ' leads', sub: `${leadsNovos} aguardando contato` },
         { area: 'admin', href: 'sistemas.html', title: 'Status dos Sistemas',
