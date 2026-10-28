@@ -749,7 +749,7 @@
       e.preventDefault();
       baixarCSV('modelo-importacao-crm.csv', [COLUNAS.map(c => c.label),
         ['Ana - Burger da Ana', 'Contato feito', '', '', 'Ana Souza', '(31) 99999-0000', 'ana@email.com', 'Burger da Ana', 'Savassi', 'Hambúrguer', 'Instagram', '', '2500', 'Q3', 'Q1', '', eu, fmt.date(dates.today()), '@burgerdaana', 'De 150 a 400', ''],
-        ['João - Sushi Top', 'Perdido [Identificação de interesse]', '', 'Preço', 'João Lima', '(31) 98888-0000', '', 'Sushi Top', 'Pampulha', 'Japonesa', 'Indicação', '', '3000', 'Q1', 'Q1', '', eu, fmt.date(dates.today()), '', '', '']]);
+        ['João - Sushi Top', 'Perdido [Identificação de interesse]', '', 'Preço', 'João Lima', '(31) 98888-0000', '', 'Sushi Top', 'Castelo', 'Japonesa', 'Indicação', '', '3000', 'Q1', 'Q1', '', eu, fmt.date(dates.today()), '', '', '']]);
     });
   }
 

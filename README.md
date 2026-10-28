@@ -1,6 +1,6 @@
 # Gestão Hubs
 
-Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as planilhas de **Comercial** e **CS**, com dashboards e um painel de **status dos sistemas** (Hubs Savassi, Cidade Nova, Pampulha e Buritis, ChatPro e push de pedidos). Roda direto no **GitHub Pages**.
+Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as planilhas de **Comercial** e **CS**, com dashboards e um painel de **status dos sistemas** (Hubs Savassi, Cidade Nova, Castelo e Buritis, ChatPro e push de pedidos). Roda direto no **GitHub Pages**.
 
 ## Páginas
 
@@ -12,6 +12,9 @@ Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as pl
 | Comercial | `comercial.html` | Controle de entrada de clientes (cadastro, busca, filtro por hub, importar/exportar planilha) |
 | CS | `cs.html` | Solicitações de saída e aviso prévio. Ao digitar a loja, completa cliente, hub, mensalidade, taxa, espaço e data de início a partir do Comercial. Calcula a **saída prevista** (solicitação + aviso prévio) e o **tempo de vida** (meses) |
 | Dashboard Comercial | `dashboard-comercial.html` | Novos clientes, mensalidade adicionada, ticket médio, % ICP, upsells, atraso de entrada, base ativa, gráficos por mês, hub e modelo |
+| Rotina do dia | `cs-rotina.html` | Checklist dos blocos do dia do CS (segunda a sexta, 13h às 19h), com o bloco que muda conforme o dia da semana |
+| Registro semanal | `cs-semana.html` | Lançamento semanal das ações do CS (indicadores A a U). Preenche sozinho os dias de checagem (pela rotina) e churn/avisos (pelas Solicitações de saída) |
+| Desempenho | `cs-desempenho.html` | Painel semanal de quem está no CS: metas batidas, rotina cumprida, indicadores por grupo e histórico de 6 semanas. Metas em `estagio.js` |
 | Dashboard CS | `dashboard-cs.html` | Solicitações, mensalidade perdida, churn, tempo de vida, saídas nos próximos 30 dias, reuniões de A.P pendentes |
 | Status dos Sistemas | `sistemas.html` | Aberto/fechado de cada hub, ChatPro e push de pedidos, com atualização automática, histórico e alerta sonoro/notificação |
 | Leads do formulário | `leads.html` | Respostas do formulário público, com status de atendimento, resumo e link para divulgar |

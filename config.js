@@ -6,7 +6,7 @@ window.APP_CONFIG = {
   appName: 'Gestão Hubs',
   supabaseUrl: 'https://gmkazwyddaptsjapuxri.supabase.co',
   supabaseAnonKey: 'sb_publishable_CY6lKEx7BmmMU_oSKvW3Vg_obo09xXM',
-  hubs: ['Savassi', 'Cidade Nova', 'Pampulha', 'Buritis'],
+  hubs: ['Savassi', 'Cidade Nova', 'Castelo', 'Buritis'],
   // Faturamento mensal médio da empresa, base do cálculo de churn (pode ser alterado em Configurações)
   faturamentoMensalBase: 120000,
 };

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3c52">
+  <title>Desempenho CS · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202610281600">
+</head>
+<body data-page="cs-desempenho">
+  <main class="content et-page">
+    <header class="page-head">
+      <div><h1>Desempenho CS</h1><p>Indicadores semanais de quem está no CS, calculados a partir do Registro semanal e da Rotina do dia. Só acompanhamento, sem nota.</p></div>
+    </header>
+
+    <div class="card et-nav">
+      <select class="input" id="pessoa"></select>
+      <button class="btn small ghost" id="ant" aria-label="Semana anterior">‹</button>
+      <b id="semana-txt"></b>
+      <button class="btn small ghost" id="prox" aria-label="Próxima semana">›</button>
+      <span class="spacer"></span>
+      <a class="btn small ghost" href="cs-semana.html">Lançar semana</a>
+    </div>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lime">Resumo</span><h2>Semana</h2><span class="muted small" id="resumo-info"></span></div>
+      <div class="kpis main" id="k-resumo"></div>
+    </section>
+    <div id="grupos"></div>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge neutral">Histórico</span><h2>Últimas 6 semanas</h2><span class="muted small">verde: meta batida · amarelo: abaixo da meta</span></div>
+      <div class="card table-card"><div class="table-wrap"><table class="data static et-hist">
+        <thead id="h-hist"></thead><tbody id="t-hist"></tbody>
+      </table></div></div>
+    </section>
+    <div class="card et-coment" id="comentario" hidden></div>
+  </main>
+  <script src="config.js?v=202610281600"></script>
+  <script src="store.js?v=202610281600"></script>
+  <script src="common.js?v=202610281600"></script>
+  <script src="dash.js?v=202610281600"></script>
+  <script src="estagio.js?v=202610281600"></script>
+  <script src="cs-desempenho.js?v=202610281600"></script>
+</body>
+</html>

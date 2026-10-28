@@ -158,6 +158,9 @@ const NAV = [
     { page: 'dash-cs', href: 'dashboard-cs.html', label: 'Dashboard CS' },
     { page: 'cs', href: 'cs.html', label: 'Solicitações de saída' },
     { page: 'cs-milestones', href: 'cs-milestones.html', label: 'Milestones' },
+    { page: 'cs-rotina', href: 'cs-rotina.html', label: 'Rotina do dia' },
+    { page: 'cs-semana', href: 'cs-semana.html', label: 'Registro semanal' },
+    { page: 'cs-desempenho', href: 'cs-desempenho.html', label: 'Desempenho' },
     { page: 'ind-cs', href: 'indicadores.html?area=cs', label: 'Indicadores' },
   ] },
   { group: 'MKT', area: 'MKT', items: [

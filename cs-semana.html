@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3c52">
+  <title>Registro semanal · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202610281600">
+</head>
+<body data-page="cs-semana">
+  <main class="content et-page">
+    <header class="page-head">
+      <div><h1>Registro semanal</h1><p>Toda sexta, das 18h30 às 19h, lance as ações da semana. Os indicadores do painel de Desempenho são calculados a partir deste registro.</p></div>
+    </header>
+
+    <div class="card et-nav">
+      <button class="btn small ghost" id="ant" aria-label="Semana anterior">‹</button>
+      <b id="semana-txt"></b>
+      <button class="btn small ghost" id="prox" aria-label="Próxima semana">›</button>
+      <button class="btn small ghost" id="atual">Semana atual</button>
+      <span class="spacer"></span>
+      <select class="input" id="pessoa" hidden></select>
+      <span class="muted small" id="salvo"></span>
+    </div>
+
+    <form id="form" novalidate></form>
+    <div class="row et-acoes">
+      <button class="btn primary" id="salvar" type="button">Salvar registro da semana</button>
+      <a class="btn ghost" href="cs-desempenho.html">Ver desempenho</a>
+    </div>
+    <p class="muted small">Campos com <span class="badge neutral">automático</span> vêm das Solicitações de saída quando estão vazios. Se o número estiver diferente, é só corrigir.</p>
+  </main>
+  <script src="config.js?v=202610281600"></script>
+  <script src="store.js?v=202610281600"></script>
+  <script src="common.js?v=202610281600"></script>
+  <script src="estagio.js?v=202610281600"></script>
+  <script src="cs-semana.js?v=202610281600"></script>
+</body>
+</html>
