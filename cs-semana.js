@@ -3,13 +3,13 @@
   if (window.SEM_ACESSO) return;
   const canEdit = Store.podeEditar('cs_semana');
   let seg = Estagio.segundaDe(dates.today()), pessoa = Estagio.email();
-  let regs = [], rotinas = [], cs = [];
+  let regs = [], rotinas = [], cs = [], fat = null;
 
   const atual = () => regs.find(r => r.usuario === pessoa && r.semana === seg);
 
   async function carregar() {
     try {
-      [regs, rotinas, cs] = await Promise.all([Store.list('cs_semana'), Store.list('cs_rotina').catch(() => []), Store.list('cs').catch(() => [])]);
+      [regs, rotinas, cs, fat] = await Promise.all([Store.list('cs_semana'), Store.list('cs_rotina').catch(() => []), Store.list('cs').catch(() => []), Fat.carregar().catch(() => null)]);
     } catch (e) { toast('Erro ao carregar: ' + e.message, 'error'); }
     // administradores e gestores escolhem de quem é o registro
     const pessoas = [...new Map([[Estagio.email(), Estagio.nome()], ...regs.map(r => [r.usuario, r.nome || r.usuario])]).entries()];
@@ -21,22 +21,19 @@
     render();
   }
 
-  // sugestões: dias de checagem pela rotina, base de clientes da semana anterior, campos automáticos do CS
+  // sugestões para campos vazios: Rotina do dia, planilha de faturamento e Solicitações de saída
   function sugestoes() {
-    const dias = Estagio.diasUteis(seg);
-    const checagem = rotinas.filter(r => r.usuario === pessoa && dias.includes(r.data) && r.feitos?.abastecimento).length;
-    const ant = regs.find(r => r.usuario === pessoa && r.semana === dates.addDays(seg, -7));
-    return { dias_checagem: rotinas.some(r => r.usuario === pessoa && dias.includes(r.data)) ? checagem : null,
-      base_clientes: ant?.base_clientes ?? 50, ...Estagio.autoCS(cs, seg) };
+    return { ...Estagio.autoPlanilha(fat, seg), ...Estagio.autoRotina(rotinas, pessoa, seg), ...Estagio.autoCS(cs, seg) };
   }
+  const FONTE = { rotina: 'pela rotina', planilha: 'pela planilha', cs: 'automático' };
 
   function campoHTML(c, v, sug) {
     const vazio = isBlank(v), val = vazio && !isBlank(sug) ? sug : v;
-    const tag = c.auto ? ' <span class="badge neutral">automático</span>' : (c.key === 'dias_checagem' && vazio && !isBlank(sug) ? ' <span class="badge neutral">pela rotina</span>' : '');
+    const tag = c.fonte && vazio && !isBlank(sug) ? ` <span class="badge neutral">${FONTE[c.fonte]}</span>` : '';
     const dis = canEdit ? '' : 'disabled';
     const input = c.tipo === 'sim'
       ? `<select class="input" name="${c.key}" ${dis}><option value="">—</option>${['Sim', 'Não'].map(o => `<option ${val === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`
-      : `<input class="input" name="${c.key}" type="number" min="0" ${c.key === 'dias_checagem' ? 'max="5"' : ''} step="${c.tipo === 'money' ? '0.01' : '1'}" value="${isBlank(val) ? '' : esc(val)}" ${dis}>`;
+      : `<input class="input" name="${c.key}" type="number" min="0" ${c.max ? `max="${c.max}"` : ''} step="${c.tipo === 'money' ? '0.01' : '1'}" value="${isBlank(val) ? '' : esc(val)}" ${dis}>`;
     return `<label class="field"><span>${esc(c.label)}${tag}</span>${input}<small class="muted">Indicador ${esc(c.ind)}</small></label>`;
   }
 
@@ -56,10 +53,9 @@
       const v = fd.get(c.key);
       rec[c.key] = c.tipo === 'sim' ? (v || null) : parse.num(v);
     }
-    if (!isBlank(rec.dias_checagem) && (rec.dias_checagem < 0 || rec.dias_checagem > 5)) return toast('Dias com checagem vai de 0 a 5.', 'error');
-    const pares = [['sinalizados_contatados', 'sinalizados'], ['contatos_performance', 'base_clientes'], ['recomendacoes_aplicadas', 'recomendacoes_enviadas'],
-      ['demandas_prazo', 'demandas_total'], ['erros_registrados', 'erros_ocorridos'], ['onb_prazo', 'onb_previstas'], ['reunioes_prazo', 'avisos_novos'], ['avisos_revertidos', 'avisos_com_reuniao']];
-    const errado = pares.find(([a, b]) => !isBlank(rec[a]) && !isBlank(rec[b]) && rec[a] > rec[b]);
+    const foraDoLimite = Estagio.CAMPOS.find(c => c.max && !isBlank(rec[c.key]) && (rec[c.key] < 0 || rec[c.key] > c.max));
+    if (foraDoLimite) return toast(`"${foraDoLimite.label}" vai de 0 a ${foraDoLimite.max}.`, 'error');
+    const errado = Estagio.PARES.find(([a, b]) => !isBlank(rec[a]) && !isBlank(rec[b]) && rec[a] > rec[b]);
     if (errado) {
       const l = k => Estagio.CAMPOS.find(c => c.key === k).label;
       return toast(`"${l(errado[0])}" não pode ser maior que "${l(errado[1])}".`, 'error');

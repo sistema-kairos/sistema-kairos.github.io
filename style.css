@@ -883,3 +883,35 @@ table.data td.quebra { white-space: normal; min-width: 180px; }
 .et-coment { margin-top: 16px; }
 .et-coment h3 { margin: 0 0 8px; }
 @media (max-width: 640px) { .et-semana { grid-template-columns: repeat(3, minmax(0, 1fr)); } .et-bloco { grid-template-columns: auto 1fr; } .et-hora { grid-column: 2; } .et-txt { grid-column: 2; } }
+
+/* ---------- CS · Faturamento dos clientes ---------- */
+.fat-vazio { margin-bottom: 20px; }
+.fat-vazio h2 { margin: 0 0 6px; }
+.fat-tab { font-size: var(--fs-xs); }
+.fat-tab th, .fat-tab td { padding: 8px 9px; }
+.fat-cli { min-width: 200px; white-space: normal !important; }
+.fat-cli small { display: block; }
+button.link { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--text); text-align: left; cursor: pointer; }
+button.link:hover { text-decoration: underline; }
+.fat-esp { width: auto; min-width: 120px; padding: 4px 8px; font-size: var(--fs-xs); }
+.fat-pct { min-width: 110px; }
+.fat-pct small { margin-left: 6px; font-variant-numeric: tabular-nums; }
+.fat-meta { display: inline-block; vertical-align: middle; width: 64px; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.fat-meta i { display: block; height: 100%; border-radius: 999px; background: var(--warning); }
+.fat-meta.ok i { background: var(--good); }
+.fat-meta.down i { background: var(--critical); }
+.fat-sit { white-space: normal !important; min-width: 150px; }
+.fat-sit .badge { margin: 2px 0; }
+.fat-saiu { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+/* ---------- CS · Rotina: clientes do dia ---------- */
+.et-clientes { margin-top: 12px; }
+.et-clientes h3 { margin: 0 0 4px; }
+.et-cli-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.et-cli { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; }
+.et-cli input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--good); }
+.et-cli b { display: block; font-size: var(--fs-sm); }
+.et-cli small { color: var(--muted); }
+.et-cli.feito { border-left: 4px solid var(--good); }
+.et-cli.feito b { text-decoration: line-through; color: var(--muted); }
+.et-cli.prio { border-left: 4px solid var(--accent); }

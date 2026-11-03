@@ -126,14 +126,6 @@
     });
   });
 
-  (() => {
-    const head = document.querySelector('.page-head');
-    if (!head || document.getElementById('link-comissao')) return;
-    const a = document.createElement('a');
-    a.id = 'link-comissao'; a.className = 'btn ghost'; a.href = 'comissao.html'; a.textContent = 'Quanto vou ganhar';
-    head.insertBefore(a, document.getElementById('dono-leads') || head.querySelector('.btn'));
-  })();
-
   async function load() {
     try { deals = await Store.list('crm'); }
     catch (e) { toast('Erro ao carregar o CRM: ' + e.message, 'error'); deals = []; }

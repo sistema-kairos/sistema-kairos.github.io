@@ -12,7 +12,8 @@ Sistema web estático (HTML + CSS + JavaScript, sem build) para substituir as pl
 | Comercial | `comercial.html` | Controle de entrada de clientes (cadastro, busca, filtro por hub, importar/exportar planilha) |
 | CS | `cs.html` | Solicitações de saída e aviso prévio. Ao digitar a loja, completa cliente, hub, mensalidade, taxa, espaço e data de início a partir do Comercial. Calcula a **saída prevista** (solicitação + aviso prévio) e o **tempo de vida** (meses) |
 | Dashboard Comercial | `dashboard-comercial.html` | Novos clientes, mensalidade adicionada, ticket médio, % ICP, upsells, atraso de entrada, base ativa, gráficos por mês, hub e modelo |
-| Rotina do dia | `cs-rotina.html` | Checklist dos blocos do dia do CS (segunda a sexta, 13h às 19h), com o bloco que muda conforme o dia da semana |
+| Faturamento dos clientes | `cs-faturamento.html` | Vendas de cada cliente vindas da planilha Faturamento Mensal: meta por espaço, variação contra o mês anterior, oscilação, erros, clientes que saíram e quem precisa de reunião |
+| Rotina do dia | `cs-rotina.html` | Rotina do CS (segunda a sexta, 13h às 19h): blocos do dia, que mudam conforme o dia da semana, e a lista dos 10 clientes do dia (menor volume primeiro) |
 | Registro semanal | `cs-semana.html` | Lançamento semanal das ações do CS (indicadores A a U). Preenche sozinho os dias de checagem (pela rotina) e churn/avisos (pelas Solicitações de saída) |
 | Desempenho | `cs-desempenho.html` | Painel semanal de quem está no CS: metas batidas, rotina cumprida, indicadores por grupo e histórico de 6 semanas. Metas em `estagio.js` |
 | Dashboard CS | `dashboard-cs.html` | Solicitações, mensalidade perdida, churn, tempo de vida, saídas nos próximos 30 dias, reuniões de A.P pendentes |
@@ -190,3 +191,16 @@ pela mesma API do formulário (`enviar_lead`). A resposta de teste passa por tod
 desfeita na mesma hora, então **não entra em Leads, no CRM nem nos indicadores**. O resultado aparece no card
 "Formulário de leads" da aba Status dos Sistemas, que tem também o botão "Testar agora" (só administradores).
 Detalhes em `supabase/migrations/20261009_04_teste_diario_formulario.sql`.
+
+## Faturamento dos clientes (CS)
+
+A aba **CS → Faturamento dos clientes** lê a planilha **Faturamento Mensal** do Google Drive (abas "Cobrança MM/AAAA", últimos 14 meses).
+
+- **Quando importa:** sozinho nos dias **3** (clientes com fechamento no dia 02) e **16** (fechamento no dia 15), às 9h, e no botão **Importar agora**.
+- **Como:** o banco pede a leitura ao mesmo Apps Script dos e-mails (`automacoes/email-aviso-previo.gs`), que lê a planilha e devolve as abas pela função `importar_faturamento`, com um código de uso único que vale 30 minutos. A conta que executa o Apps Script precisa ter acesso à planilha.
+- **Ativar:** rode `scripts/aplicar-sql.sh` (migração `20261028_02_faturamento_clientes.sql`), cole a nova versão do `email-aviso-previo.gs` no Apps Script, rode `testarLeituraFaturamento` uma vez para autorizar o acesso à planilha e publique uma nova versão da implantação (mesmo endereço).
+- **Ativo ou inativo:** quem está na aba do mês é ativo; quem estava no mês anterior e não aparece mais entra em "Saíram da planilha".
+- **Metas por espaço** (definido pelo CS na própria tabela): 1/4 de freezer R$ 8.000, 1/2 freezer R$ 14.000, 1 freezer R$ 40.000. Metas e regras de alerta ficam em `faturamento.js`.
+- **Marcar reunião:** queda de 30% ou mais em relação ao mês anterior, menos de 50% da meta ou faturamento zerado.
+- **Erros:** pedidos com erro citados na coluna OBS da planilha ("erro pedido 0732"), em relação ao total de pedidos. Acima de 1%, o cliente refaz o treinamento.
+- A lista de **clientes do dia** na Rotina usa essa mesma ordem (menor volume primeiro) e esconde quem já teve conversa na semana.

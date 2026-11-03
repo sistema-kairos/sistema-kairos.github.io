@@ -152,10 +152,12 @@ const NAV = [
     { page: 'dash-comercial', href: 'dashboard-comercial.html', label: 'Dashboard Comercial' },
     { page: 'crm', href: 'crm.html', label: 'CRM' },
     { page: 'comercial', href: 'comercial.html', label: 'Clientes' },
+    { page: 'comissao', href: 'comissao.html', label: 'Quanto vou ganhar' },
     { page: 'ind-comercial', href: 'indicadores.html?area=comercial', label: 'Indicadores' },
   ] },
   { group: 'CS', area: 'CS', items: [
     { page: 'dash-cs', href: 'dashboard-cs.html', label: 'Dashboard CS' },
+    { page: 'cs-faturamento', href: 'cs-faturamento.html', label: 'Faturamento dos clientes' },
     { page: 'cs', href: 'cs.html', label: 'Solicitações de saída' },
     { page: 'cs-milestones', href: 'cs-milestones.html', label: 'Milestones' },
     { page: 'cs-rotina', href: 'cs-rotina.html', label: 'Rotina do dia' },

@@ -11,13 +11,18 @@
  *
  * Quem chama este endereço é o banco (Supabase):
  *   - sempre que uma nova solicitação de aviso prévio é cadastrada no CS;
- *   - quando um cliente atinge um milestone (tipo 'milestone', aba CS → Milestones).
+ *   - quando um cliente atinge um milestone (tipo 'milestone', aba CS → Milestones);
+ *   - para ler a planilha "Faturamento Mensal" (tipo 'importar_faturamento', aba CS → Faturamento dos clientes):
+ *     nos dias 3 e 16 de cada mês e no botão "Importar agora". O script lê as abas "Cobrança MM/AAAA"
+ *     e devolve ao banco pela função importar_faturamento, com um código de uso único que o próprio banco gerou.
+ *     A conta que executa o script precisa ter acesso à planilha.
  * O endereço não aparece no site.
  *
  * Atualizar sem trocar o endereço: Implantar → Gerenciar implantações → lápis (editar) → Versão: "Nova versão" → Implantar.
  */
 function doPost(e) {
   const dados = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+  if (dados.tipo === 'importar_faturamento') return importarFaturamento(dados.codigo);
   const para = (dados.para || [])
     .map(function (x) { return String(x).trim(); })
     .filter(function (x) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x); })
@@ -106,4 +111,96 @@ function enviarMilestones(para, dados) {
     '</div><div style="text-align:center;color:#7b8a95;font-size:11px;margin-top:12px">E-mail automático do Gestão Hubs</div></div>';
   MailApp.sendEmail({ to: para.join(','), subject: assunto, htmlBody: html, name: 'Órion · Gestão Hubs' });
   return ContentService.createTextOutput('ok');
+}
+
+// ---------- planilha Faturamento Mensal → Gestão Hubs (CS → Faturamento dos clientes) ----------
+const PLANILHA_FATURAMENTO = '1SzVGG4fChAwRmdSl10TBQM2TFNBkY1pqmXGbCB9Rszk';
+const SUPABASE_URL = 'https://gmkazwyddaptsjapuxri.supabase.co';
+const SUPABASE_CHAVE = 'sb_publishable_CY6lKEx7BmmMU_oSKvW3Vg_obo09xXM'; // chave pública (a mesma do config.js do site)
+const MESES_FATURAMENTO = 14; // quantos meses (abas) mais recentes enviar
+const HUB_POR_NUMERO = { 1: 'Savassi', 2: 'Cidade Nova', 3: 'Buritis', 4: 'Castelo' };
+
+// colunas lidas pelo nome do cabeçalho (a ordem muda entre as abas)
+const COLUNAS = {
+  hub: ['hub'], modelo: ['modelodeoperacao', 'modelo'], dia: ['datadopagamento'], cliente: ['rest'],
+  mensalidade: ['mensalidade'], mensalidade_total: ['mensalidadetotal'], erros_rs: ['errosoperacionais'],
+  pedidos: ['totaldepedidos'], faturamento: ['faturamento'], variavel: ['variavel'], total_orion: ['totalorion'], obs: ['obs'],
+};
+
+function chave(s) {
+  return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function numero(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  if (typeof v === 'number') return isFinite(v) ? Math.round(v * 100) / 100 : null;
+  let s = String(v).replace(/R\$|\s/g, '');
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
+  return isFinite(n) ? n : null;
+}
+
+function lerAbasFaturamento() {
+  const planilha = SpreadsheetApp.openById(PLANILHA_FATURAMENTO);
+  const porMes = {};
+  planilha.getSheets().forEach(function (aba) {
+    const nome = aba.getName();
+    if (/andamento|atualizar/i.test(nome)) return;
+    const m = nome.match(/cobran[çc]a\s*(\d{1,2})\s*\/?\s*(\d{4})/i);
+    if (!m) return;
+    const mes = m[2] + '-' + ('0' + m[1]).slice(-2);
+    // se houver duas abas do mesmo mês, fica a que não é "Cópia de"
+    if (porMes[mes] && /^\s*c[óo]pia/i.test(nome)) return;
+    porMes[mes] = aba;
+  });
+  const meses = Object.keys(porMes).sort().slice(-MESES_FATURAMENTO);
+  return meses.map(function (mes) {
+    const aba = porMes[mes];
+    const valores = aba.getDataRange().getValues();
+    const cab = (valores[0] || []).map(chave);
+    const col = {};
+    Object.keys(COLUNAS).forEach(function (k) {
+      col[k] = cab.findIndex(function (h) { return COLUNAS[k].indexOf(h) >= 0; });
+    });
+    const linhas = [];
+    valores.slice(1).forEach(function (l) {
+      const cliente = col.cliente >= 0 ? String(l[col.cliente] || '').trim() : '';
+      if (!cliente) return;
+      const v = function (k) { return col[k] >= 0 ? l[col[k]] : null; };
+      const hubN = numero(v('hub'));
+      linhas.push({
+        cliente: cliente.slice(0, 120),
+        hub: HUB_POR_NUMERO[hubN] || (hubN ? 'Hub ' + hubN : ''),
+        modelo: String(v('modelo') || '').trim().slice(0, 20),
+        dia: numero(v('dia')),
+        mensalidade: numero(v('mensalidade')),
+        mensalidade_total: numero(v('mensalidade_total')),
+        erros_rs: numero(v('erros_rs')),
+        pedidos: numero(v('pedidos')),
+        faturamento: numero(v('faturamento')),
+        variavel: numero(v('variavel')),
+        total_orion: numero(v('total_orion')),
+        obs: String(v('obs') || '').slice(0, 1500),
+      });
+    });
+    return { mes: mes, aba: aba.getName().trim(), linhas: linhas.slice(0, 400) };
+  });
+}
+
+function importarFaturamento(codigo) {
+  if (!codigo) return ContentService.createTextOutput('sem código');
+  const abas = lerAbasFaturamento();
+  const resp = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/importar_faturamento', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { apikey: SUPABASE_CHAVE, Authorization: 'Bearer ' + SUPABASE_CHAVE },
+    payload: JSON.stringify({ codigo: codigo, abas: abas, fim: true }),
+    muteHttpExceptions: true,
+  });
+  return ContentService.createTextOutput(resp.getResponseCode() < 300 ? 'ok: ' + abas.length + ' abas' : 'erro: ' + resp.getContentText());
+}
+
+// Para testar no editor do Apps Script: selecione esta função e clique em Executar.
+// Mostra no registro (Execução) quantas abas e clientes o script consegue ler, sem enviar nada.
+function testarLeituraFaturamento() {
+  lerAbasFaturamento().forEach(function (a) { Logger.log(a.mes + ' · ' + a.aba + ' · ' + a.linhas.length + ' clientes'); });
 }

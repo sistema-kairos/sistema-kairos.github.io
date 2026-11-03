@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3c52">
+  <title>Faturamento dos clientes · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202611031300">
+</head>
+<body data-page="cs-faturamento">
+  <main class="content et-page">
+    <header class="page-head">
+      <div><h1>Faturamento dos clientes</h1><p>Vendas de cada cliente vindas da planilha Faturamento Mensal, comparadas com o mês anterior e com a meta do espaço que ele ocupa.</p></div>
+    </header>
+
+    <div class="card et-nav">
+      <select class="input" id="mes" aria-label="Mês da cobrança"></select>
+      <select class="input" id="hub" aria-label="Hub"><option value="">Todos os hubs</option></select>
+      <select class="input" id="filtro" aria-label="Filtro">
+        <option value="">Todos os clientes</option>
+        <option value="reuniao">Marcar reunião</option>
+        <option value="abaixo">Abaixo da meta</option>
+        <option value="queda">Queda forte</option>
+        <option value="erro">Erro acima de 1%</option>
+        <option value="sem_espaco">Sem espaço definido</option>
+      </select>
+      <input class="input" id="busca" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente">
+      <span class="spacer"></span>
+      <span class="muted small" id="status"></span>
+      <button class="btn small primary" id="importar" hidden>Importar agora</button>
+    </div>
+
+    <div class="card fat-vazio" id="vazio" hidden>
+      <h2>Ainda não há dados da planilha</h2>
+      <p class="muted">A importação roda sozinha nos dias 3 e 16 de cada mês. Para trazer os dados agora, clique em <b>Importar agora</b> e espere cerca de 1 minuto.</p>
+    </div>
+
+    <div id="conteudo">
+      <section class="dash-section">
+        <div class="section-head"><span class="badge lime">Resumo</span><h2 id="titulo-mes">Mês</h2><span class="muted small" id="info-mes"></span></div>
+        <div class="kpis main" id="k-resumo"></div>
+        <div class="kpis" id="k-alertas"></div>
+      </section>
+
+      <section class="dash-section">
+        <div class="section-head"><span class="badge neutral">Evolução</span><h2>Faturamento total por mês</h2></div>
+        <div class="card chart-card"><div class="chart-box"><canvas id="c-total"></canvas></div></div>
+      </section>
+
+      <section class="dash-section">
+        <div class="section-head"><span class="badge neutral">Clientes</span><h2>Clientes ativos</h2>
+          <span class="muted small">ordem: menor volume primeiro · clique no cliente para ver os meses</span></div>
+        <div class="card table-card"><div class="table-wrap"><table class="data static fat-tab">
+          <thead><tr><th>Cliente</th><th>Hub</th><th class="num">Fecha</th><th>Espaço</th><th class="num">Faturamento</th><th class="num">Meta</th>
+            <th>% da meta</th><th class="num">vs mês ant.</th><th class="num">Média 3 meses</th><th class="num">Oscilação</th>
+            <th class="num">Pedidos</th><th class="num">Ticket</th><th class="num">Erros</th><th>Situação</th></tr></thead>
+          <tbody id="t-clientes"></tbody>
+        </table></div></div>
+        <p class="muted small">Meta por espaço: 1/4 de freezer R$ 8.000 · 1/2 freezer R$ 14.000 · 1 freezer R$ 40.000. Oscilação: quanto as vendas variam em torno da média dos últimos 6 meses (quanto maior, mais instável).
+          Erros: pedidos com erro citados na coluna OBS da planilha, em relação ao total de pedidos.</p>
+      </section>
+
+      <section class="dash-section" id="s-saiu">
+        <div class="section-head"><span class="badge down">Inativos</span><h2>Saíram da planilha</h2><span class="muted small">estavam no mês anterior e não aparecem neste</span></div>
+        <div class="card"><ul class="fat-saiu" id="saiu"></ul></div>
+      </section>
+    </div>
+  </main>
+  <script src="config.js?v=202611031300"></script>
+  <script src="store.js?v=202611031300"></script>
+  <script src="common.js?v=202611031300"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="dash.js?v=202611031300"></script>
+  <script src="faturamento.js?v=202611031300"></script>
+  <script src="cs-faturamento.js?v=202611031300"></script>
+</body>
+</html>

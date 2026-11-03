@@ -1,4 +1,4 @@
-// CS → Desempenho: painel semanal dos indicadores A a U (ver estagio.js) + rotina cumprida + histórico de 6 semanas.
+// CS → Desempenho: painel semanal dos indicadores A a W (ver estagio.js) + rotina cumprida + histórico de 6 semanas.
 (() => {
   if (window.SEM_ACESSO) return;
   let regs = [], rotinas = [], pessoa = Estagio.email(), seg = Estagio.segundaDe(dates.today());
