@@ -178,16 +178,19 @@
 
   // ---------- upsells do contrato (comissao.upsells = [{ valor, fechou, data, pago_em }]) ----------
   const upsellsDe = d => d.comissao?.upsells || [];
+  // pessoas que podem receber comissão (lista de seleção): quem já é responsável ou já fechou algo no CRM
+  const pessoasVenda = (...extra) => [...new Set([eu, ...extra, ...deals.flatMap(x => [x.responsavel, x.comissao?.fechou, ...upsellsDe(x).map(u => u.fechou)])]
+    .filter(Boolean).map(x => String(x).trim()))].sort((a, b) => a.localeCompare(b));
   function lancarUpsell(d, i = null) {
     const u = i === null ? { data: dates.today(), fechou: eu } : upsellsDe(d)[i];
-    const resps = [...new Set([eu, d.responsavel, d.comissao?.fechou, ...deals.map(x => x.responsavel)].filter(Boolean))];
+    const resps = pessoasVenda(d.responsavel, u.fechou);
     openModal({
       title: i === null ? 'Lançar upsell' : 'Editar upsell',
       body: `<p class="small">Informe só o <b>aumento</b> na mensalidade fixa. Quem fechou o upsell recebe 50% desse aumento, pago depois do 1º pagamento da nova mensalidade.</p>
         <div class="form-grid">
           <label class="field"><span>Aumento na mensalidade</span><div class="affix"><span>R$</span><input class="input" id="up-valor" type="number" step="0.01" min="0" value="${esc(u.valor ?? '')}"></div></label>
-          <label class="field"><span>Quem fechou o upsell</span><input class="input" id="up-fechou" list="dl-up-resp" value="${esc(u.fechou || '')}">
-            <datalist id="dl-up-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist></label>
+          <label class="field"><span>Quem fechou o upsell (recebe a comissão do upsell)</span><select class="input" id="up-fechou">
+            ${resps.map(r => `<option ${r === (u.fechou || eu) ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>
           <label class="field"><span>Data do upsell</span><input class="input" id="up-data" type="date" value="${esc(u.data || '')}"></label>
           <label class="field"><span>1º pagamento da nova mensalidade</span><input class="input" id="up-pago" type="date" value="${esc(u.pago_em || '')}"></label>
         </div>`,
@@ -646,7 +649,8 @@
           <datalist id="dl-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist>`)}
         ${secao('Comissão', `
           <p class="muted small sec-nota">Usado em "Quanto vou ganhar". Origem em branco: o sistema deduz pela fonte (prospecção, marketing ou não comprovada).</p>
-          ${kv('Quem fechou o contrato', 'comissao.fechou', d, 'text', { list: 'dl-resp', placeholder: d.responsavel || 'Responsável' })}
+          ${kv('Quem fechou o contrato', 'comissao.fechou', d, 'select', { options: pessoasVenda(d.responsavel, d.comissao?.fechou) })}
+          <p class="muted small sec-nota">${d.comissao?.fechou ? '' : `Em branco: a comissão do contrato vai para o responsável (${esc(d.responsavel || 'sem responsável')}). `}A comissão de cada upsell vai para quem fechou o upsell.</p>
           ${kv('Mensalidade fixa contratada', 'comissao.mensalidade', d, 'money', { placeholder: d.valor_total ? 'R$ ' + d.valor_total + ' (valor total)' : 'R$ 0,00' })}
           ${kv('Origem da venda', 'comissao.origem', d, 'select', { options: ['Marketing', 'Prospecção ativa', 'Reaquecimento da base', 'Não comprovada'] })}
           ${kv('Quem originou', 'comissao.originador', d, 'text', { list: 'dl-resp', placeholder: d.comissao?.fechou || d.responsavel || '' })}
