@@ -915,3 +915,12 @@ button.link:hover { text-decoration: underline; }
 .et-cli.feito { border-left: 4px solid var(--good); }
 .et-cli.feito b { text-decoration: line-through; color: var(--muted); }
 .et-cli.prio { border-left: 4px solid var(--accent); }
+/* CRM: upsells lançados no contrato (seção Comissão) */
+.upsells { margin: 10px 8px 0; padding-top: 10px; border-top: 1px dashed var(--border); display: grid; gap: 8px; }
+.up-tit { margin: 0; font-size: var(--fs-sm); color: var(--text); }
+.up-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.up-item > div { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: var(--fs-sm); }
+.up-item small { font-size: var(--fs-xs); }
+.up-acoes { display: flex; gap: 10px; flex: none; }
+.upsells #add-upsell { justify-self: start; }
+.sec-nota { margin: 0 8px 6px; }

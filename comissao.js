@@ -6,8 +6,10 @@
 //   originação (Marketing 15% · prospecção ativa 10% · reaquecimento da base 5% · não comprovada 0),
 //   liderança (júnior 15% · pleno 10%), direção (júnior 10% · pleno/sênior 5%) e fundo Kairós (10%). Teto: 100% do orçamento.
 // Pagamento: metade quando a taxa de implementação é paga; metade quando o cliente completa 6 meses de operação.
-// Upsell (comissao.tipo = 'Upsell', cláusula 10.3): quem fechou recebe 50% do aumento na mensalidade, de uma vez, depois do
-//   1º pagamento da nova mensalidade (comissao.upsell_pago_em). Não conta como contrato novo (nível e acelerador).
+// Upsell (cláusula 10.3): lançado no próprio contrato (comissao.upsells = [{ valor, fechou, data, pago_em }]) — quem fechou o upsell
+//   recebe 50% do aumento na mensalidade, de uma vez, depois do 1º pagamento da nova mensalidade. Não conta como contrato novo.
+//   (Negociações antigas com comissao.tipo = 'Upsell' continuam valendo como um upsell.)
+// Quem fechou o contrato: comissao.fechou (se vazio, o responsável da negociação).
 (() => {
   if (window.SEM_ACESSO) return;
 
@@ -58,9 +60,10 @@
 
   // ---------- nível e acelerador ----------
   const ehUpsell = d => d.comissao?.tipo === 'Upsell';
+  const fechadorDe = d => canonico(d.comissao?.fechou || d.responsavel);
   const fechados = () => deals.filter(d => d.etapa === FECHADO && !ehUpsell(d));   // contratos novos (nível e acelerador)
   const vendas = () => deals.filter(d => d.etapa === FECHADO);                      // contratos novos e upsells
-  const contratosAte = (p, fimISO) => fechados().filter(d => canonico(d.responsavel) === p && fechadoEm(d).slice(0, 10) <= fimISO).length;
+  const contratosAte = (p, fimISO) => fechados().filter(d => fechadorDe(d) === p && fechadoEm(d).slice(0, 10) <= fimISO).length;
   function nivelDe(p, fimISO) {
     if (p === cfg.diretor) return { ...(cfg.niveis.find(x => x.grupo === 'senior') || cfg.niveis[cfg.niveis.length - 1]), definido: true };   // diretor recebe como sênior
     const fixo = cfg.pessoas?.[p] && cfg.niveis.find(x => x.nome === cfg.pessoas[p]);
@@ -70,20 +73,20 @@
     return [...ord].reverse().find(x => total >= x.a_partir) || ord[0];   // abaixo do primeiro patamar: nível de entrada
   }
   const rankNoMes = d => {
-    const p = canonico(d.responsavel), ym = dates.ym(fechadoEm(d));
-    return fechados().filter(x => canonico(x.responsavel) === p && dates.ym(fechadoEm(x)) === ym)
+    const p = fechadorDe(d), ym = dates.ym(fechadoEm(d));
+    return fechados().filter(x => fechadorDe(x) === p && dates.ym(fechadoEm(x)) === ym)
       .sort((a, b) => fechadoEm(a).localeCompare(fechadoEm(b))).findIndex(x => x.id === d.id) + 1;
   };
 
   // ---------- repartição de um contrato ----------
   function repartir(d) {
     if (ehUpsell(d)) {
-      const F = canonico(d.responsavel) || 'Sem responsável', aumento = mensalidade(d), pct = n(cfg.upsell_pct);
+      const F = fechadorDe(d) || 'Sem responsável', aumento = mensalidade(d), pct = n(cfg.upsell_pct);
       return { d, upsell: true, B: aumento, F, origem: 'Upsell', partes: [{ quem: F, papel: `Upsell (${pctTxt(pct)} do aumento)`, pct, valor: aumento * pct / 100 }],
         total: pct, excede: false, fim: fechadoEm(d).slice(0, 10), p1: d.comissao?.upsell_pago_em || null, p2: null };
     }
     const B = mensalidade(d) * n(cfg.meses) * n(cfg.orcamento_pct) / 100;
-    const F = canonico(d.responsavel) || 'Sem responsável';
+    const F = fechadorDe(d) || 'Sem responsável';
     const fim = fechadoEm(d).slice(0, 10);
     const senior = cfg.niveis.find(x => x.grupo === 'senior') || cfg.niveis[cfg.niveis.length - 1];
     const nivel = F === cfg.diretor ? senior : nivelDe(F, fim);   // diretor que fecha recebe a participação sênior
@@ -119,6 +122,16 @@
     return { d, B, F, nivel, origem, rank, acel, acelPedido, partes, total, excede: total > 100.001, fim, p1, p2 };
   }
 
+  // um pagamento de comissão por upsell lançado no contrato
+  function upsellsDoContrato(d) {
+    return (d.comissao?.upsells || []).filter(u => n(u.valor) > 0).map(u => {
+      const F = canonico(u.fechou) || fechadorDe(d) || 'Sem responsável', pct = n(cfg.upsell_pct);
+      return { d, upsell: true, rotulo: `Upsell de ${fmt.date(u.data)}`, B: n(u.valor), F, origem: 'Upsell',
+        partes: [{ quem: F, papel: `Upsell (${pctTxt(pct)} do aumento)`, pct, valor: n(u.valor) * pct / 100 }],
+        total: pct, excede: false, fim: (u.data || fechadoEm(d)).slice(0, 10), p1: u.pago_em || null, p2: null };
+    });
+  }
+
   // ---------- tela ----------
   async function carregar() {
     try {
@@ -132,7 +145,7 @@
   const eu = () => canonico(Store.perfil().nome || (Store.getSession()?.email || '').split('@')[0] || 'Modo local');
   function pessoas() {
     const s = new Set();
-    deals.forEach(d => { [d.responsavel, d.comissao?.coexecutor, d.comissao?.originador].forEach(x => { const c = canonico(x); if (c) s.add(c); }); });
+    deals.forEach(d => { [d.responsavel, d.comissao?.fechou, d.comissao?.coexecutor, d.comissao?.originador, ...(d.comissao?.upsells || []).map(u => u.fechou)].forEach(x => { const c = canonico(x); if (c) s.add(c); }); });
     [cfg.lider, cfg.diretor, cfg.marketing_nome, 'Fundo Kairós'].forEach(x => s.add(x));
     return [...s].sort((a, b) => a.localeCompare(b));
   }
@@ -146,7 +159,7 @@
 
   function render() {
     $('#mes').value = mes;
-    const todos = vendas().map(repartir);
+    const todos = vendas().map(repartir).concat(vendas().flatMap(upsellsDoContrato));
     const minhas = todos.flatMap(r => r.partes.filter(p => p.quem === pessoa).map(p => ({ ...p, r })));
     const doMes = minhas.filter(x => dates.ym(x.r.fim) === mes);
     const gerado = doMes.reduce((s, x) => s + x.valor, 0);
@@ -159,12 +172,12 @@
     const aguardando = parc.filter(p => p.n === 1 && !p.ym).reduce((s, p) => s + p.valor, 0);
 
     // nível (só para quem fecha vendas)
-    const vendedor = fechados().some(d => canonico(d.responsavel) === pessoa);
+    const vendedor = fechados().some(d => fechadorDe(d) === pessoa);
     const fimMes = dates.toISO(new Date(Number(mes.slice(0, 4)), Number(mes.slice(5)), 0));
     const total = contratosAte(pessoa, fimMes), nivel = nivelDe(pessoa, fimMes);
     const ord = [...cfg.niveis].sort((a, b) => a.a_partir - b.a_partir);
     const prox = ord.find(x => x.a_partir > total && x.a_partir > nivel.a_partir);
-    const noMes = fechados().filter(d => canonico(d.responsavel) === pessoa && dates.ym(fechadoEm(d)) === mes).length;
+    const noMes = fechados().filter(d => fechadorDe(d) === pessoa && dates.ym(fechadoEm(d)) === mes).length;
 
     Dash.kpis('#k-cm', [
       { label: `A receber em ${fmt.month(mes)}`, value: brl(aReceber), sub: `${receber.length} parcela${receber.length === 1 ? '' : 's'} com pagamento previsto no mês` },
@@ -186,9 +199,9 @@
         : r.p1 ? `${brl(x.valor / 2)} <small>em ${fmt.month(dates.ym(r.p1))}</small>` : `${brl(x.valor / 2)} <small class="cm-pend">aguardando taxa</small>`;
       const p2 = r.upsell ? '<span class="muted">—</span>' : `${brl(x.valor / 2)} <small>em ${fmt.month(dates.ym(r.p2))}</small>`;
       return `<tr class="${dates.ym(r.fim) === mes ? 'cm-mes' : ''}">
-        <td><b>${esc(d.titulo || d.empresa?.nome || 'Negociação')}</b><small class="cm-sub">${esc(r.origem)}${r.excede ? ' · <span class="cm-pend">passa de 100% do orçamento</span>' : ''}</small></td>
+        <td><b>${esc(d.titulo || d.empresa?.nome || 'Negociação')}</b><small class="cm-sub">${esc(r.rotulo || r.origem)}${r.excede ? ' · <span class="cm-pend">passa de 100% do orçamento</span>' : ''}</small></td>
         <td>${fmt.date(r.fim)}</td>
-        <td class="num">${mensalidade(d) ? (r.upsell ? '+' : '') + brl(mensalidade(d)) + (r.upsell ? ' <small>aumento</small>' : '') : '<span class="cm-pend">sem valor</span>'}</td>
+        <td class="num">${r.upsell ? `+${brl(r.B)} <small>aumento</small>` : mensalidade(d) ? brl(mensalidade(d)) : '<span class="cm-pend">sem valor</span>'}</td>
         <td class="num">${r.upsell ? '<span class="muted">—</span>' : brl(r.B)}</td>
         <td>${esc(x.papel)}</td>
         <td class="num">${pctTxt(x.pct)}</td>
@@ -224,7 +237,7 @@
           ${texto('marketing_nome', 'Quem recebe a origem Marketing')}</div>
         <h3>Nível definido pela gestão</h3>
         <p class="small muted">Em branco, o nível sai da contagem de contratos fechados.</p>
-        <div class="form-grid">${pessoas().filter(p => fechados().some(d => canonico(d.responsavel) === p)).map(p => `<label class="field"><span>${esc(p)}</span>
+        <div class="form-grid">${pessoas().filter(p => fechados().some(d => fechadorDe(d) === p)).map(p => `<label class="field"><span>${esc(p)}</span>
           <select class="input" data-pessoa="${esc(p)}"><option value="">Pela contagem</option>${c.niveis.map(x => `<option ${c.pessoas?.[p] === x.nome ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select></label>`).join('')}</div>`,
       actions: [{ label: 'Cancelar', cls: 'ghost' }, { label: 'Restaurar padrão', cls: 'ghost', onClick: async () => { await Store.save('config', { id: 'comissao', ...structuredClone(PADRAO) }); cfg = structuredClone(PADRAO); montarPessoas(); render(); toast('Regras padrão restauradas', 'ok'); } },
         { label: 'Salvar', cls: 'primary', onClick: async dlg => {
