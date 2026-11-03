@@ -98,7 +98,8 @@ function CrudPage(opts) {
     let input;
     switch (f.type) {
       case 'select':
-        input = `<select class="input" ${attrs}><option value=""></option>${f.options.map(o =>
+        // valor salvo que não está mais na lista continua aparecendo (não some ao salvar)
+        input = `<select class="input" ${attrs}><option value=""></option>${(isBlank(v) || f.options.includes(v) ? f.options : [...f.options, v]).map(o =>
           `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
         break;
       case 'textarea':

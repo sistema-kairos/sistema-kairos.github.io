@@ -176,41 +176,6 @@
     else toast(etapa === PERDIDO ? `Movida para ${perdidoLabel(d.perdido_etapa)}` : `Movida para ${etapa}`, 'ok');
   }
 
-  // ---------- upsells do contrato (comissao.upsells = [{ valor, fechou, data, pago_em }]) ----------
-  const upsellsDe = d => d.comissao?.upsells || [];
-  // pessoas que podem receber comissão (lista de seleção): quem já é responsável ou já fechou algo no CRM
-  const pessoasVenda = (...extra) => [...new Set([eu, ...extra, ...deals.flatMap(x => [x.responsavel, x.comissao?.fechou, ...upsellsDe(x).map(u => u.fechou)])]
-    .filter(Boolean).map(x => String(x).trim()))].sort((a, b) => a.localeCompare(b));
-  function lancarUpsell(d, i = null) {
-    const u = i === null ? { data: dates.today(), fechou: eu } : upsellsDe(d)[i];
-    const resps = pessoasVenda(d.responsavel, u.fechou);
-    openModal({
-      title: i === null ? 'Lançar upsell' : 'Editar upsell',
-      body: `<p class="small">Informe só o <b>aumento</b> na mensalidade fixa. Quem fechou o upsell recebe 50% desse aumento, pago depois do 1º pagamento da nova mensalidade.</p>
-        <div class="form-grid">
-          <label class="field"><span>Aumento na mensalidade</span><div class="affix"><span>R$</span><input class="input" id="up-valor" type="number" step="0.01" min="0" value="${esc(u.valor ?? '')}"></div></label>
-          <label class="field"><span>Quem fechou o upsell (recebe a comissão do upsell)</span><select class="input" id="up-fechou">
-            ${resps.map(r => `<option ${r === (u.fechou || eu) ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>
-          <label class="field"><span>Data do upsell</span><input class="input" id="up-data" type="date" value="${esc(u.data || '')}"></label>
-          <label class="field"><span>1º pagamento da nova mensalidade</span><input class="input" id="up-pago" type="date" value="${esc(u.pago_em || '')}"></label>
-        </div>`,
-      actions: [{ label: 'Cancelar', cls: 'ghost' }, { label: 'Salvar upsell', cls: 'primary', onClick: async dlg => {
-        const valor = parse.num($('#up-valor', dlg).value), fechou = $('#up-fechou', dlg).value.trim();
-        if (!(valor > 0)) throw new Error('Informe o aumento na mensalidade');
-        if (!fechou) throw new Error('Informe quem fechou o upsell');
-        const novo = { valor, fechou, data: $('#up-data', dlg).value || dates.today(), pago_em: $('#up-pago', dlg).value || null };
-        d.comissao = d.comissao || {};
-        const lista = [...upsellsDe(d)];
-        if (i === null) lista.push(novo); else lista[i] = novo;
-        d.comissao.upsells = lista;
-        await persist(d);
-        renderDrawer();
-        if (i === null) celebrarUpsell(d, fechou, valor);
-        else toast('Upsell atualizado', 'ok');
-      } }],
-    });
-  }
-
   // ---------- comemoração de nova venda ----------
   // Ao entrar em "Negócio fechado": contratos do vendedor no mês e no total, comparados à média de 2,5 contratos por mês.
   const MEDIA_MENSAL = 2.5;
@@ -222,7 +187,7 @@
         <h3 style="font-size:var(--fs-2xl);margin:6px 0">${aumento ? `+${esc(fmt.money(aumento))} por mês` : 'Upsell fechado!'}</h3>
         <p class="muted">${esc(d.titulo || 'Cliente')}</p>
         ${aumento ? `<p><b>Sua comissão: ${esc(fmt.money(aumento / 2))}</b> (50% do aumento), paga depois do 1º pagamento da nova mensalidade.</p>`
-          : '<p>Informe o aumento na mensalidade na seção "Comissão" para calcular a sua comissão.</p>'}</div>`,
+          : '<p>Informe o aumento na aba Clientes para calcular a sua comissão.</p>'}</div>`,
       actions: [{ label: 'Comemorar!', cls: 'primary' }],
     });
   }
@@ -647,26 +612,6 @@
           ${url ? `<a class="sec-link" href="${esc(url)}" target="_blank" rel="noopener">Abrir site da empresa ${ICON.ext}</a>` : ''}`)}
         ${secao('Responsável', `${kv('Responsável', 'responsavel', d, 'text', { list: 'dl-resp' })}
           <datalist id="dl-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist>`)}
-        ${secao('Comissão', `
-          <p class="muted small sec-nota">Usado em "Quanto vou ganhar". Origem em branco: o sistema deduz pela fonte (prospecção, marketing ou não comprovada).</p>
-          ${kv('Quem fechou o contrato', 'comissao.fechou', d, 'select', { options: pessoasVenda(d.responsavel, d.comissao?.fechou) })}
-          <p class="muted small sec-nota">${d.comissao?.fechou ? '' : `Em branco: a comissão do contrato vai para o responsável (${esc(d.responsavel || 'sem responsável')}). `}A comissão de cada upsell vai para quem fechou o upsell.</p>
-          ${kv('Mensalidade fixa contratada', 'comissao.mensalidade', d, 'money', { placeholder: d.valor_total ? 'R$ ' + d.valor_total + ' (valor total)' : 'R$ 0,00' })}
-          ${kv('Origem da venda', 'comissao.origem', d, 'select', { options: ['Marketing', 'Prospecção ativa', 'Reaquecimento da base', 'Não comprovada'] })}
-          ${kv('Quem originou', 'comissao.originador', d, 'text', { list: 'dl-resp', placeholder: d.comissao?.fechou || d.responsavel || '' })}
-          ${kv('Venda compartilhada com', 'comissao.coexecutor', d, 'text', { list: 'dl-resp', placeholder: 'ninguém' })}
-          ${kv('Taxa de implementação paga em', 'comissao.taxa_paga_em', d, 'date')}
-          ${kv('Início da operação', 'comissao.inicio_operacao', d, 'date')}
-          ${d.comissao?.tipo === 'Upsell' ? kv('Tipo de venda', 'comissao.tipo', d, 'select', { options: ['Nova venda', 'Upsell'] }) + kv('1º pagamento da nova mensalidade', 'comissao.upsell_pago_em', d, 'date') : ''}
-          <div class="upsells">
-            <h4 class="up-tit">Upsells</h4>
-            ${upsellsDe(d).map((u, i) => `<div class="up-item">
-              <div><b>+${esc(fmt.money(u.valor))} por mês</b> em ${esc(fmt.date(u.data))} · fechado por ${esc(u.fechou || '—')}
-                <small class="muted">Comissão de ${esc(fmt.money((Number(u.valor) || 0) / 2))} · ${u.pago_em ? `1º pagamento da nova mensalidade em ${esc(fmt.date(u.pago_em))}` : 'aguardando o 1º pagamento da nova mensalidade'}</small></div>
-              ${canEdit ? `<span class="up-acoes"><button class="link-btn" data-up-edit="${i}">editar</button><button class="link-btn danger" data-up-rm="${i}">remover</button></span>` : ''}
-            </div>`).join('') || '<p class="muted small">Nenhum upsell lançado.</p>'}
-            ${canEdit ? '<button class="btn ghost small" id="add-upsell">+ Lançar upsell</button>' : ''}
-          </div>`, !!d.comissao)}
         ${secao('Anotações', `<textarea class="v notes" data-path="anotacoes" rows="5" placeholder="Ideia de negócio, próximos passos, combinados…" ${dis}>${esc(d.anotacoes || '')}</textarea>`)}
         ${secao('Histórico', `<ol class="hist">${(d.historico || []).slice().reverse().map(h => `
           <li><b>${esc(etapaHist(h))}</b>${h.motivo ? ` · ${esc(h.motivo)}` : ''}<span class="muted small">${esc(fmt.dateTime(h.em))}${h.por ? ' · ' + esc(h.por) : ''}</span></li>`).join('') || '<li class="muted">Sem movimentações</li>'}</ol>`, false)}
@@ -691,14 +636,6 @@
     $('#avancar', drawer)?.addEventListener('click', () => mover(d, ETAPAS[ETAPAS.indexOf(d.etapa) + 1]));
     $('#perder', drawer)?.addEventListener('click', () => mover(d, PERDIDO));
     $('#reabrir', drawer)?.addEventListener('click', () => mover(d, ETAPAS.includes(d.perdido_etapa) ? d.perdido_etapa : ETAPAS[0]));
-    $('#add-upsell', drawer)?.addEventListener('click', () => lancarUpsell(d));
-    $$('[data-up-edit]', drawer).forEach(b => b.addEventListener('click', () => lancarUpsell(d, Number(b.dataset.upEdit))));
-    $$('[data-up-rm]', drawer).forEach(b => b.addEventListener('click', async () => {
-      const u = upsellsDe(d)[Number(b.dataset.upRm)];
-      if (!confirm(`Remover o upsell de +${fmt.money(u.valor)} por mês?`)) return;
-      d.comissao.upsells = upsellsDe(d).filter((_, k) => k !== Number(b.dataset.upRm));
-      await persist(d); renderDrawer();
-    }));
     $('#add-contato', drawer)?.addEventListener('click', () => { d.contatos = [...contatosDe(d), {}]; scheduleSave(d); renderDrawer(); });
     $$('.rm-contato', drawer).forEach(b => b.addEventListener('click', () => {
       if (!confirm('Remover este contato?')) return;

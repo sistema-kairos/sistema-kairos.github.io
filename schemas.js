@@ -2,6 +2,10 @@
 // type: text | textarea | money | percent | int | date | datetime | month | select | email | tel | cnpj | months
 // list: aparece na tabela | suggest: sugere valores já usados | aliases: nomes alternativos na importação
 
+// pessoas que podem receber comissão (lista editável em Comercial → Quanto vou ganhar → Regras de comissão)
+window.VENDEDORES = window.VENDEDORES || ['Arthur Rocha', 'Ivon', 'Laura Puliti'];
+const ORIGENS_VENDA = ['Marketing', 'Prospecção ativa', 'Reaquecimento da base', 'Não comprovada'];
+
 const COMERCIAL_FIELDS = [
   { key: 'nome_cliente', label: 'Nome Cliente', type: 'text', required: true, list: true },
   { key: 'nome_loja', label: 'Nome da Loja', type: 'text', required: true, list: true },
@@ -21,6 +25,13 @@ const COMERCIAL_FIELDS = [
   { key: 'novo_espaco_upsell', label: 'Novo Espaço (Upsell)', type: 'text' },
   { key: 'hub', label: 'Hub', type: 'select', options: HUBS, required: true, list: true },
   { key: 'mes_fechamento', label: 'Mês de Fechamento', type: 'month', list: true },
+  // comissão (Comercial → Quanto vou ganhar): cada linha é um contrato novo ou um upsell
+  { key: 'tipo_venda', label: 'Tipo de venda', type: 'select', options: ['Nova venda', 'Upsell'], hint: 'Upsell: a Mensalidade Fixa é só o aumento; quem fechou recebe 50% dele após a Data do 1º pagamento.' },
+  { key: 'fechou', label: 'Quem fechou (recebe a comissão)', type: 'select', get options() { return window.VENDEDORES; } },
+  { key: 'origem_venda', label: 'Origem da venda', type: 'select', options: ORIGENS_VENDA },
+  { key: 'originador', label: 'Quem originou', type: 'select', get options() { return window.VENDEDORES; }, hint: 'Prospecção ativa ou reaquecimento: em branco, vale quem fechou.' },
+  { key: 'coexecutor', label: 'Venda compartilhada com', type: 'select', get options() { return window.VENDEDORES; }, hint: '70% para quem fechou e 30% para quem compartilhou.' },
+  { key: 'taxa_paga_em', label: 'Taxa de implementação paga em', type: 'date', hint: 'Libera a 1ª metade da comissão do contrato novo.' },
   { key: 'observacoes', label: 'Observações', type: 'textarea' },
 ];
 

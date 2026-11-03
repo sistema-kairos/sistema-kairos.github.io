@@ -1,15 +1,15 @@
 // Comercial → Quanto vou ganhar: comissão conforme a Política de Remuneração Variável (minuta v1.0, out/2026).
-// Regras ajustáveis em config/comissao (só administradores). Dados: negociações do CRM em "Negócio fechado" e a seção "Comissão" de cada uma
-//   comissao: { mensalidade, origem, originador, coexecutor, taxa_paga_em, inicio_operacao }
-// Por contrato: orçamento = mensalidade fixa × 12 × 5%, repartido entre
-//   fechamento (% do nível do vendedor + acelerador a partir da 3ª venda do mês; 70/30 se compartilhada),
+// Regras ajustáveis em config/comissao (só administradores).
+// Dados: aba Clientes (tabela 'comercial'). Cada linha é um contrato novo ou um upsell:
+//   tipo_venda (Nova venda | Upsell), fechou (recebe a comissão), origem_venda, originador, coexecutor, taxa_paga_em,
+//   mensalidade_fixa (no upsell, só o aumento), mes_fechamento, data_entrada_real / data_entrada_contrato, data_primeiro_pagamento.
+// Contrato novo: orçamento = mensalidade fixa × 12 × 5%, repartido entre
+//   fechamento (% do nível de quem fechou + acelerador a partir da 3ª venda do mês; 70/30 se compartilhada),
 //   originação (Marketing 15% · prospecção ativa 10% · reaquecimento da base 5% · não comprovada 0),
 //   liderança (júnior 15% · pleno 10%), direção (júnior 10% · pleno/sênior 5%) e fundo Kairós (10%). Teto: 100% do orçamento.
-// Pagamento: metade quando a taxa de implementação é paga; metade quando o cliente completa 6 meses de operação.
-// Upsell (cláusula 10.3): lançado no próprio contrato (comissao.upsells = [{ valor, fechou, data, pago_em }]) — quem fechou o upsell
-//   recebe 50% do aumento na mensalidade, de uma vez, depois do 1º pagamento da nova mensalidade. Não conta como contrato novo.
-//   (Negociações antigas com comissao.tipo = 'Upsell' continuam valendo como um upsell.)
-// Quem fechou o contrato: comissao.fechou (se vazio, o responsável da negociação).
+//   Pagamento: metade quando a taxa de implementação é paga; metade quando o cliente completa 6 meses de operação.
+// Upsell (cláusula 10.3): quem fechou o upsell recebe 50% do aumento, de uma vez, depois do 1º pagamento da nova mensalidade.
+//   Não conta como contrato novo (nível e acelerador).
 (() => {
   if (window.SEM_ACESSO) return;
 
@@ -28,6 +28,7 @@
     lider: 'Arthur Rocha', lider_aliases: 'arthurrocha, Arthur', lider_junior_pct: 15, lider_pleno_pct: 10,
     diretor: 'Ivon', diretor_aliases: 'Ivon Mascarenhas', diretor_junior_pct: 10, diretor_outros_pct: 5,
     fundo_pct: 10, coexecutor_pct: 30, upsell_pct: 50,
+    vendedores: ['Arthur Rocha', 'Ivon', 'Laura Puliti'],   // quem aparece em "Quem fechou" na aba Clientes
     pessoas: { 'Arthur Rocha': 'Sênior I' },   // nível definido pela gestão (prevalece sobre a contagem); o líder hoje é sênior
   };
   const FECHADO = 'Negócio fechado';
@@ -57,6 +58,20 @@
     if (/formul|instagram|midias|tiktok|youtube|typeform|site|campanha|anuncio|evento/.test(f)) return 'Marketing';
     return 'Não comprovada';
   }
+
+  // ---------- linhas da aba Clientes → contratos ----------
+  function dataFechamento(c) {
+    const mesF = c.mes_fechamento;
+    if (mesF) return c.data_entrada_contrato?.startsWith(mesF) ? c.data_entrada_contrato : `${mesF}-01`;
+    return c.data_entrada_contrato || c.data_entrada_real || String(c.updated_at || '').slice(0, 10) || dates.today();
+  }
+  const daCliente = c => ({
+    id: c.id, titulo: [c.nome_loja, c.nome_cliente].filter(Boolean).join(' · '), responsavel: c.fechou || '', etapa: FECHADO, fonte: '',
+    historico: [{ etapa: FECHADO, em: dataFechamento(c) + 'T12:00:00' }], valor_total: c.mensalidade_fixa,
+    comissao: { tipo: c.tipo_venda === 'Upsell' ? 'Upsell' : 'Nova venda', mensalidade: c.mensalidade_fixa, fechou: c.fechou,
+      origem: c.origem_venda || 'Não comprovada', originador: c.originador, coexecutor: c.coexecutor, taxa_paga_em: c.taxa_paga_em,
+      inicio_operacao: c.data_entrada_real || c.data_entrada_contrato, upsell_pago_em: c.data_primeiro_pagamento },
+  });
 
   // ---------- nível e acelerador ----------
   const ehUpsell = d => d.comissao?.tipo === 'Upsell';
@@ -135,8 +150,8 @@
   // ---------- tela ----------
   async function carregar() {
     try {
-      const [ds, c] = await Promise.all([Store.list('crm'), Store.get('config', 'comissao').catch(() => null)]);
-      deals = ds;
+      const [cl, c] = await Promise.all([Store.list('comercial'), Store.get('config', 'comissao').catch(() => null)]);
+      deals = cl.map(daCliente);
       if (c) cfg = { ...structuredClone(PADRAO), ...c, niveis: c.niveis?.length ? c.niveis : structuredClone(PADRAO.niveis) };
     } catch (e) { toast('Erro ao carregar: ' + e.message, 'error'); }
     montarPessoas();
@@ -146,7 +161,7 @@
   function pessoas() {
     const s = new Set();
     deals.forEach(d => { [d.responsavel, d.comissao?.fechou, d.comissao?.coexecutor, d.comissao?.originador, ...(d.comissao?.upsells || []).map(u => u.fechou)].forEach(x => { const c = canonico(x); if (c) s.add(c); }); });
-    [cfg.lider, cfg.diretor, cfg.marketing_nome, 'Fundo Kairós'].forEach(x => s.add(x));
+    [cfg.lider, cfg.diretor, cfg.marketing_nome, 'Fundo Kairós', ...(cfg.vendedores || []).map(canonico)].forEach(x => s.add(x));
     return [...s].sort((a, b) => a.localeCompare(b));
   }
   function montarPessoas() {
@@ -184,7 +199,7 @@
       { label: `Gerado em ${fmt.month(mes)}`, value: brl(gerado), sub: `${doMes.length} participaç${doMes.length === 1 ? 'ão' : 'ões'} em contratos e upsells fechados no mês` },
       { label: 'Aguardando pagamento do cliente', value: brl(aguardando), sub: 'taxa de implementação ou 1º pagamento da nova mensalidade (upsell)' },
     ]);
-    $('#nivel').innerHTML = !vendedor ? `<p class="muted">${esc(pessoa)} não tem vendas fechadas no CRM. As participações abaixo são de upsell, originação, liderança ou direção.</p>` : `
+    $('#nivel').innerHTML = !vendedor ? `<p class="muted">${esc(pessoa)} não tem contratos novos na aba Clientes. As participações abaixo são de upsell, originação, liderança ou direção.</p>` : `
       <div class="cm-nivel">
         <div><span class="cm-rot">Nível</span><b>${esc(nivel.nome)}</b><small>${nivel.definido ? 'definido pela gestão' : `pela contagem de contratos`} · participação de ${pctTxt(nivel.pct)}</small></div>
         <div><span class="cm-rot">Contratos fechados</span><b>${total}</b><small>${prox ? `faltam ${prox.a_partir - total} para ${esc(prox.nome)}` : 'nível máximo'}</small></div>
@@ -200,7 +215,7 @@
       const p2 = r.upsell ? '<span class="muted">—</span>' : `${brl(x.valor / 2)} <small>em ${fmt.month(dates.ym(r.p2))}</small>`;
       return `<tr class="${dates.ym(r.fim) === mes ? 'cm-mes' : ''}">
         <td><b>${esc(d.titulo || d.empresa?.nome || 'Negociação')}</b><small class="cm-sub">${esc(r.rotulo || r.origem)}${r.excede ? ' · <span class="cm-pend">passa de 100% do orçamento</span>' : ''}</small></td>
-        <td>${fmt.date(r.fim)}</td>
+        <td>${fmt.month(dates.ym(r.fim))}</td>
         <td class="num">${r.upsell ? `+${brl(r.B)} <small>aumento</small>` : mensalidade(d) ? brl(mensalidade(d)) : '<span class="cm-pend">sem valor</span>'}</td>
         <td class="num">${r.upsell ? '<span class="muted">—</span>' : brl(r.B)}</td>
         <td>${esc(x.papel)}</td>
@@ -235,6 +250,9 @@
           ${texto('diretor', 'Direção comercial')}${texto('diretor_aliases', 'Outros nomes no CRM')}
           ${campo('diretor_junior_pct', 'Direção sobre júnior')}${campo('diretor_outros_pct', 'Direção sobre pleno e sênior')}
           ${texto('marketing_nome', 'Quem recebe a origem Marketing')}</div>
+        <h3>Quem pode receber comissão</h3>
+        <label class="field wide"><span>Nomes que aparecem em "Quem fechou", "Quem originou" e "Venda compartilhada" na aba Clientes (um por linha)</span>
+          <textarea class="input" id="vendedores" rows="4">${esc((c.vendedores || []).join('\n'))}</textarea></label>
         <h3>Nível definido pela gestão</h3>
         <p class="small muted">Em branco, o nível sai da contagem de contratos fechados.</p>
         <div class="form-grid">${pessoas().filter(p => fechados().some(d => fechadorDe(d) === p)).map(p => `<label class="field"><span>${esc(p)}</span>
@@ -243,6 +261,7 @@
         { label: 'Salvar', cls: 'primary', onClick: async dlg => {
           $$('[data-k]', dlg).forEach(i => { c[i.dataset.k] = i.type === 'number' ? parse.num(i.value) : i.value.trim(); });
           $$('[data-nv]', dlg).forEach(i => { const x = c.niveis[i.dataset.nv]; x[i.dataset.c] = ['a_partir', 'pct'].includes(i.dataset.c) ? parse.num(i.value) : i.value; });
+          c.vendedores = [...new Set($('#vendedores', dlg).value.split(/\n|,/).map(x => x.trim()).filter(Boolean))];
           c.pessoas = {};
           $$('[data-pessoa]', dlg).forEach(s => { if (s.value) c.pessoas[s.dataset.pessoa] = s.value; });
           await Store.save('config', { id: 'comissao', ...c });
