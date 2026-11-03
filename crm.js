@@ -165,13 +165,82 @@
     } else if (d.etapa === PERDIDO) {
       d.perdido_etapa = null; d.motivo_perda = null; d.motivo_detalhe = null;
     }
+    const novaVenda = etapa === FECHADO && d.etapa !== FECHADO;
     d.etapa = etapa;
     d.etapa_desde = now();
     (d.historico = d.historico || []).push({ etapa, em: now(), por: eu, ...(etapa === PERDIDO ? { perdido_em: d.perdido_etapa, motivo: d.motivo_perda } : {}) });
     await persist(d);
     render();
     if (openId === d.id) renderDrawer();
-    toast(etapa === PERDIDO ? `Movida para ${perdidoLabel(d.perdido_etapa)}` : `Movida para ${etapa}`, 'ok');
+    if (novaVenda) celebrarVenda(d);
+    else toast(etapa === PERDIDO ? `Movida para ${perdidoLabel(d.perdido_etapa)}` : `Movida para ${etapa}`, 'ok');
+  }
+
+  // ---------- comemoração de nova venda ----------
+  // Ao entrar em "Negócio fechado": contratos do vendedor no mês e no total, comparados à média de 2,5 contratos por mês.
+  const MEDIA_MENSAL = 2.5;
+  const fechouEm = d => (d.historico || []).filter(h => h.etapa === FECHADO).map(h => h.em).sort().pop() || null;
+  function celebrarVenda(d) {
+    const vendedor = d.responsavel || eu;
+    const mes = dates.today().slice(0, 7);
+    const dele = deals.filter(x => (x.responsavel || '') === (d.responsavel || '') && x.etapa === FECHADO && fechouEm(x));
+    const noMes = dele.filter(x => dates.ym(fechouEm(x)) === mes).length;
+    const primeiro = dele.map(fechouEm).sort()[0];
+    const meses = primeiro ? Math.max(1, dates.monthRange(dates.ym(primeiro), mes).length) : 1;
+    const mediaDele = dele.length / meses;
+    const num = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+    const acima = noMes - MEDIA_MENSAL;
+    const frase = noMes > MEDIA_MENSAL ? `Já são ${noMes} contratos neste mês, ${num(acima)} acima da média de ${num(MEDIA_MENSAL)} por mês. Mês excelente!`
+      : noMes === MEDIA_MENSAL ? `${noMes} contratos neste mês: exatamente na média de ${num(MEDIA_MENSAL)} por mês.`
+      : `${noMes} de ${num(MEDIA_MENSAL)} contratos da média mensal. Falta${MEDIA_MENSAL - noMes > 1 ? 'm' : ''} ${num(MEDIA_MENSAL - noMes)} para chegar lá.`;
+    const pct = Math.min(100, noMes / MEDIA_MENSAL * 100);
+    if (!document.getElementById('estilo-venda')) {
+      const st = document.createElement('style');
+      st.id = 'estilo-venda';
+      st.textContent = `.venda-cel { text-align: center; }
+        .venda-cel .vc-kicker { color: var(--accent-700); font-weight: 600; font-size: var(--fs-2xs, 11px); letter-spacing: .08em; text-transform: uppercase; }
+        .venda-cel h3 { font-size: var(--fs-2xl, 28px); color: var(--text); margin: 6px 0 4px; line-height: 1.2; }
+        .venda-cel .vc-loja { color: var(--text-2); margin: 0 0 18px; }
+        .vc-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+        .vc-nums div { background: var(--surface-2); border-radius: 14px; padding: 12px 8px; display: grid; gap: 2px; }
+        .vc-nums b { font-size: var(--fs-xl, 24px); font-variant-numeric: tabular-nums; }
+        .vc-nums span { font-size: var(--fs-2xs, 11px); color: var(--text-2); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+        .vc-barra { height: 10px; border-radius: 99px; background: var(--surface-2); overflow: hidden; position: relative; }
+        .vc-barra i { display: block; height: 100%; border-radius: 99px; background: var(--good); }
+        .vc-frase { margin: 12px 0 0; font-weight: 600; }
+        .vc-confete { position: fixed; top: -12px; width: 9px; height: 14px; border-radius: 2px; z-index: 2000; pointer-events: none; }`;
+      document.head.appendChild(st);
+    }
+    openModal({
+      title: 'Nova venda!',
+      body: `<div class="venda-cel">
+        <div class="vc-kicker">Parabéns, ${esc(vendedor)}</div>
+        <h3>Contrato fechado!</h3>
+        <p class="vc-loja">${esc(d.titulo || empresaDe(d).nome || 'Nova negociação')}${d.valor_total ? ` · ${esc(fmt.money(d.valor_total))}` : ''}</p>
+        <div class="vc-nums">
+          <div><b>${noMes}</b><span>neste mês</span></div>
+          <div><b>${dele.length}</b><span>no total</span></div>
+          <div><b>${num(mediaDele)}</b><span>sua média por mês</span></div>
+        </div>
+        <div class="vc-barra" aria-label="Contratos do mês em relação à média de ${num(MEDIA_MENSAL)}"><i style="width:${pct}%"></i></div>
+        <p class="vc-frase">${esc(frase)}</p>
+      </div>`,
+      actions: [{ label: 'Comemorar!', cls: 'primary' }],
+    });
+    // confete (respeita quem prefere menos movimento)
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cores = ['#22b8d4', '#0b3c52', '#2da66e', '#f08a3c', '#6d5bd0', '#f2a516'];
+    for (let i = 0; i < 90; i++) {
+      const c = document.createElement('i');
+      c.className = 'vc-confete';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = cores[i % cores.length];
+      document.body.appendChild(c);
+      const dur = 1800 + Math.random() * 1600;
+      c.animate([{ transform: `translateY(0) rotate(0deg)`, opacity: 1 },
+        { transform: `translate(${(Math.random() - .5) * 200}px, 105vh) rotate(${Math.random() * 720}deg)`, opacity: .9 }],
+        { duration: dur, delay: Math.random() * 400, easing: 'cubic-bezier(.2,.6,.4,1)', fill: 'forwards' }).onfinish = () => c.remove();
+    }
   }
 
   function pedirMotivo(d, etapaPerda) {
