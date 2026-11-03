@@ -126,6 +126,14 @@
     });
   });
 
+  (() => {
+    const head = document.querySelector('.page-head');
+    if (!head || document.getElementById('link-comissao')) return;
+    const a = document.createElement('a');
+    a.id = 'link-comissao'; a.className = 'btn ghost'; a.href = 'comissao.html'; a.textContent = 'Quanto vou ganhar';
+    head.insertBefore(a, document.getElementById('dono-leads') || head.querySelector('.btn'));
+  })();
+
   async function load() {
     try { deals = await Store.list('crm'); }
     catch (e) { toast('Erro ao carregar o CRM: ' + e.message, 'error'); deals = []; }
@@ -599,6 +607,14 @@
           ${url ? `<a class="sec-link" href="${esc(url)}" target="_blank" rel="noopener">Abrir site da empresa ${ICON.ext}</a>` : ''}`)}
         ${secao('Responsável', `${kv('Responsável', 'responsavel', d, 'text', { list: 'dl-resp' })}
           <datalist id="dl-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist>`)}
+        ${secao('Comissão', `
+          <p class="muted small sec-nota">Usado em "Quanto vou ganhar". Origem em branco: o sistema deduz pela fonte (prospecção, marketing ou não comprovada).</p>
+          ${kv('Mensalidade fixa contratada', 'comissao.mensalidade', d, 'money', { placeholder: d.valor_total ? 'R$ ' + d.valor_total + ' (valor total)' : 'R$ 0,00' })}
+          ${kv('Origem da venda', 'comissao.origem', d, 'select', { options: ['Marketing', 'Prospecção ativa', 'Reaquecimento da base', 'Não comprovada'] })}
+          ${kv('Quem originou', 'comissao.originador', d, 'text', { list: 'dl-resp', placeholder: d.responsavel || '' })}
+          ${kv('Venda compartilhada com', 'comissao.coexecutor', d, 'text', { list: 'dl-resp', placeholder: 'ninguém' })}
+          ${kv('Taxa de implementação paga em', 'comissao.taxa_paga_em', d, 'date')}
+          ${kv('Início da operação', 'comissao.inicio_operacao', d, 'date')}`, false)}
         ${secao('Anotações', `<textarea class="v notes" data-path="anotacoes" rows="5" placeholder="Ideia de negócio, próximos passos, combinados…" ${dis}>${esc(d.anotacoes || '')}</textarea>`)}
         ${secao('Histórico', `<ol class="hist">${(d.historico || []).slice().reverse().map(h => `
           <li><b>${esc(etapaHist(h))}</b>${h.motivo ? ` · ${esc(h.motivo)}` : ''}<span class="muted small">${esc(fmt.dateTime(h.em))}${h.por ? ' · ' + esc(h.por) : ''}</span></li>`).join('') || '<li class="muted">Sem movimentações</li>'}</ol>`, false)}

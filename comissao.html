@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3c52">
+  <title>Quanto vou ganhar · Órion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b3c52'/><ellipse cx='16' cy='19' rx='8' ry='7' fill='none' stroke='%2322b8d4' stroke-width='3.5' transform='rotate(-25 16 19)'/><path d='M12 8 L21 4.5' stroke='%2322b8d4' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=202610281600">
+  <style>
+    .cm-filtros { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .cm-filtros .input { width: auto; }
+    .cm-eu { font-size: var(--fs-md); }
+    .cm-nivel { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .cm-nivel > div { display: grid; gap: 2px; }
+    .cm-rot { font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: var(--ls-caps); color: var(--text-2); font-weight: 600; }
+    .cm-nivel b { font-size: var(--fs-xl); }
+    .cm-nivel small { color: var(--muted); font-size: var(--fs-xs); }
+    .cm-barra { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-top: 14px; }
+    .cm-barra i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+    .cm-sub { display: block; color: var(--muted); font-size: var(--fs-xs); }
+    .cm-pend { color: var(--warning-text); }
+    table.data td small { font-size: var(--fs-2xs); color: var(--muted); }
+    table.data tr.cm-mes td { background: var(--accent-50); }
+    .cm-nota { margin-top: 12px; }
+  </style>
+</head>
+<body data-page="comissao">
+  <main class="content">
+    <header class="page-head">
+      <div><h1>Quanto vou ganhar</h1><p>Comissão das vendas, conforme a Política de Remuneração Variável do time Kairós</p></div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="regras">Regras de comissão</button>
+    </header>
+    <div class="cm-filtros">
+      <select class="input" id="pessoa" aria-label="Pessoa"></select>
+      <label class="mkt-periodo"><span class="muted small">Mês</span><input class="input" type="month" id="mes"></label>
+    </div>
+
+    <section class="dash-section">
+      <div class="section-head"><span class="badge lime">Comissão</span><h2>Resumo do mês</h2></div>
+      <div class="kpis main" id="k-cm"></div>
+      <div class="card" id="nivel" style="margin-top:16px"></div>
+    </section>
+
+    <section class="card table-card">
+      <div class="card-titulo"><h3>Contratos e participações</h3></div>
+      <div class="table-wrap"><table class="data static"><thead><tr>
+        <th>Contrato</th><th>Fechado em</th><th class="num">Mensalidade fixa</th><th class="num">Orçamento (5% × 12)</th>
+        <th>Participação</th><th class="num">%</th><th class="num">Valor</th><th class="num">1ª metade</th><th class="num">2ª metade</th>
+      </tr></thead><tbody id="t-cm"></tbody></table></div>
+    </section>
+    <p class="muted small cm-nota">Simulação pela minuta v1.0 da política: os valores são estimativas e dependem da validação do Financeiro.
+      A 1ª metade é paga após o recebimento da taxa de implementação e a 2ª quando o cliente completa 6 meses de operação.
+      Mensalidade, origem, quem originou, venda compartilhada e datas ficam na seção "Comissão" de cada negociação do CRM.</p>
+  </main>
+  <script src="config.js?v=202610281600"></script>
+  <script src="store.js?v=202610281600"></script>
+  <script src="common.js?v=202610281600"></script>
+  <script src="dash.js?v=202610281600"></script>
+  <script src="comissao.js?v=202611031200"></script>
+</body>
+</html>
