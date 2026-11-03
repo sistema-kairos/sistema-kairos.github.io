@@ -180,10 +180,23 @@
   // Ao entrar em "Negócio fechado": contratos do vendedor no mês e no total, comparados à média de 2,5 contratos por mês.
   const MEDIA_MENSAL = 2.5;
   const fechouEm = d => (d.historico || []).filter(h => h.etapa === FECHADO).map(h => h.em).sort().pop() || null;
+  function celebrarUpsell(d, vendedor) {
+    const aumento = Number(d.comissao?.mensalidade) || 0;
+    openModal({
+      title: 'Upsell fechado!',
+      body: `<div style="text-align:center"><p class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin:0">Parabéns, ${esc(vendedor)}</p>
+        <h3 style="font-size:var(--fs-2xl);margin:6px 0">${aumento ? `+${esc(fmt.money(aumento))} por mês` : 'Upsell fechado!'}</h3>
+        <p class="muted">${esc(d.titulo || 'Cliente')}</p>
+        ${aumento ? `<p><b>Sua comissão: ${esc(fmt.money(aumento / 2))}</b> (50% do aumento), paga depois do 1º pagamento da nova mensalidade.</p>`
+          : '<p>Informe o aumento na mensalidade na seção "Comissão" para calcular a sua comissão.</p>'}</div>`,
+      actions: [{ label: 'Comemorar!', cls: 'primary' }],
+    });
+  }
   function celebrarVenda(d) {
     const vendedor = d.responsavel || eu;
     const mes = dates.today().slice(0, 7);
-    const dele = deals.filter(x => (x.responsavel || '') === (d.responsavel || '') && x.etapa === FECHADO && fechouEm(x));
+    if (d.comissao?.tipo === 'Upsell') return celebrarUpsell(d, vendedor);
+    const dele = deals.filter(x => (x.responsavel || '') === (d.responsavel || '') && x.etapa === FECHADO && fechouEm(x) && x.comissao?.tipo !== 'Upsell');
     const noMes = dele.filter(x => dates.ym(fechouEm(x)) === mes).length;
     const primeiro = dele.map(fechouEm).sort()[0];
     const meses = primeiro ? Math.max(1, dates.monthRange(dates.ym(primeiro), mes).length) : 1;
@@ -600,8 +613,11 @@
         ${secao('Responsável', `${kv('Responsável', 'responsavel', d, 'text', { list: 'dl-resp' })}
           <datalist id="dl-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist>`)}
         ${secao('Comissão', `
-          <p class="muted small sec-nota">Usado em "Quanto vou ganhar". Origem em branco: o sistema deduz pela fonte (prospecção, marketing ou não comprovada).</p>
-          ${kv('Mensalidade fixa contratada', 'comissao.mensalidade', d, 'money', { placeholder: d.valor_total ? 'R$ ' + d.valor_total + ' (valor total)' : 'R$ 0,00' })}
+          <p class="muted small sec-nota">Usado em "Quanto vou ganhar". Origem em branco: o sistema deduz pela fonte (prospecção, marketing ou não comprovada).
+            Upsell: informe só o aumento na mensalidade; quem fechou recebe 50% dele depois do 1º pagamento da nova mensalidade.</p>
+          ${kv('Tipo de venda', 'comissao.tipo', d, 'select', { options: ['Nova venda', 'Upsell'] })}
+          ${kv(d.comissao?.tipo === 'Upsell' ? 'Aumento na mensalidade' : 'Mensalidade fixa contratada', 'comissao.mensalidade', d, 'money', { placeholder: d.valor_total ? 'R$ ' + d.valor_total + ' (valor total)' : 'R$ 0,00' })}
+          ${d.comissao?.tipo === 'Upsell' ? kv('1º pagamento da nova mensalidade', 'comissao.upsell_pago_em', d, 'date') : ''}
           ${kv('Origem da venda', 'comissao.origem', d, 'select', { options: ['Marketing', 'Prospecção ativa', 'Reaquecimento da base', 'Não comprovada'] })}
           ${kv('Quem originou', 'comissao.originador', d, 'text', { list: 'dl-resp', placeholder: d.responsavel || '' })}
           ${kv('Venda compartilhada com', 'comissao.coexecutor', d, 'text', { list: 'dl-resp', placeholder: 'ninguém' })}

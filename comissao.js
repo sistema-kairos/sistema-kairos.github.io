@@ -6,6 +6,8 @@
 //   originação (Marketing 15% · prospecção ativa 10% · reaquecimento da base 5% · não comprovada 0),
 //   liderança (júnior 15% · pleno 10%), direção (júnior 10% · pleno/sênior 5%) e fundo Kairós (10%). Teto: 100% do orçamento.
 // Pagamento: metade quando a taxa de implementação é paga; metade quando o cliente completa 6 meses de operação.
+// Upsell (comissao.tipo = 'Upsell', cláusula 10.3): quem fechou recebe 50% do aumento na mensalidade, de uma vez, depois do
+//   1º pagamento da nova mensalidade (comissao.upsell_pago_em). Não conta como contrato novo (nível e acelerador).
 (() => {
   if (window.SEM_ACESSO) return;
 
@@ -23,7 +25,7 @@
     marketing_pct: 15, prospeccao_pct: 10, reaquecimento_pct: 5, marketing_nome: 'Marketing',
     lider: 'Arthur Rocha', lider_aliases: 'arthurrocha, Arthur', lider_junior_pct: 15, lider_pleno_pct: 10,
     diretor: 'Ivon', diretor_aliases: 'Ivon Mascarenhas', diretor_junior_pct: 10, diretor_outros_pct: 5,
-    fundo_pct: 10, coexecutor_pct: 30,
+    fundo_pct: 10, coexecutor_pct: 30, upsell_pct: 50,
     pessoas: { 'Arthur Rocha': 'Sênior I' },   // nível definido pela gestão (prevalece sobre a contagem); o líder hoje é sênior
   };
   const FECHADO = 'Negócio fechado';
@@ -55,7 +57,9 @@
   }
 
   // ---------- nível e acelerador ----------
-  const fechados = () => deals.filter(d => d.etapa === FECHADO);
+  const ehUpsell = d => d.comissao?.tipo === 'Upsell';
+  const fechados = () => deals.filter(d => d.etapa === FECHADO && !ehUpsell(d));   // contratos novos (nível e acelerador)
+  const vendas = () => deals.filter(d => d.etapa === FECHADO);                      // contratos novos e upsells
   const contratosAte = (p, fimISO) => fechados().filter(d => canonico(d.responsavel) === p && fechadoEm(d).slice(0, 10) <= fimISO).length;
   function nivelDe(p, fimISO) {
     if (p === cfg.diretor) return { ...(cfg.niveis.find(x => x.grupo === 'senior') || cfg.niveis[cfg.niveis.length - 1]), definido: true };   // diretor recebe como sênior
@@ -73,6 +77,11 @@
 
   // ---------- repartição de um contrato ----------
   function repartir(d) {
+    if (ehUpsell(d)) {
+      const F = canonico(d.responsavel) || 'Sem responsável', aumento = mensalidade(d), pct = n(cfg.upsell_pct);
+      return { d, upsell: true, B: aumento, F, origem: 'Upsell', partes: [{ quem: F, papel: `Upsell (${pctTxt(pct)} do aumento)`, pct, valor: aumento * pct / 100 }],
+        total: pct, excede: false, fim: fechadoEm(d).slice(0, 10), p1: d.comissao?.upsell_pago_em || null, p2: null };
+    }
     const B = mensalidade(d) * n(cfg.meses) * n(cfg.orcamento_pct) / 100;
     const F = canonico(d.responsavel) || 'Sem responsável';
     const fim = fechadoEm(d).slice(0, 10);
@@ -137,13 +146,14 @@
 
   function render() {
     $('#mes').value = mes;
-    const todos = fechados().map(repartir);
+    const todos = vendas().map(repartir);
     const minhas = todos.flatMap(r => r.partes.filter(p => p.quem === pessoa).map(p => ({ ...p, r })));
     const doMes = minhas.filter(x => dates.ym(x.r.fim) === mes);
     const gerado = doMes.reduce((s, x) => s + x.valor, 0);
-    const parc = minhas.flatMap(x => [
-      { x, n: 1, ym: x.r.p1 ? dates.ym(x.r.p1) : null, valor: x.valor / 2 },
-      { x, n: 2, ym: dates.ym(x.r.p2), valor: x.valor / 2 }]);
+    const parc = minhas.flatMap(x => x.r.upsell
+      ? [{ x, n: 1, ym: x.r.p1 ? dates.ym(x.r.p1) : null, valor: x.valor }]
+      : [{ x, n: 1, ym: x.r.p1 ? dates.ym(x.r.p1) : null, valor: x.valor / 2 },
+         { x, n: 2, ym: dates.ym(x.r.p2), valor: x.valor / 2 }]);
     const receber = parc.filter(p => p.ym === mes);
     const aReceber = receber.reduce((s, p) => s + p.valor, 0);
     const aguardando = parc.filter(p => p.n === 1 && !p.ym).reduce((s, p) => s + p.valor, 0);
@@ -158,10 +168,10 @@
 
     Dash.kpis('#k-cm', [
       { label: `A receber em ${fmt.month(mes)}`, value: brl(aReceber), sub: `${receber.length} parcela${receber.length === 1 ? '' : 's'} com pagamento previsto no mês` },
-      { label: `Gerado em ${fmt.month(mes)}`, value: brl(gerado), sub: `${doMes.length} participaç${doMes.length === 1 ? 'ão' : 'ões'} em contratos fechados no mês · pago em 2 metades` },
-      { label: 'Aguardando taxa de implementação', value: brl(aguardando), sub: '1ª metade libera quando o cliente paga a taxa' },
+      { label: `Gerado em ${fmt.month(mes)}`, value: brl(gerado), sub: `${doMes.length} participaç${doMes.length === 1 ? 'ão' : 'ões'} em contratos e upsells fechados no mês` },
+      { label: 'Aguardando pagamento do cliente', value: brl(aguardando), sub: 'taxa de implementação ou 1º pagamento da nova mensalidade (upsell)' },
     ]);
-    $('#nivel').innerHTML = !vendedor ? `<p class="muted">${esc(pessoa)} não tem vendas fechadas no CRM. As participações abaixo são de originação, liderança ou direção.</p>` : `
+    $('#nivel').innerHTML = !vendedor ? `<p class="muted">${esc(pessoa)} não tem vendas fechadas no CRM. As participações abaixo são de upsell, originação, liderança ou direção.</p>` : `
       <div class="cm-nivel">
         <div><span class="cm-rot">Nível</span><b>${esc(nivel.nome)}</b><small>${nivel.definido ? 'definido pela gestão' : `pela contagem de contratos`} · participação de ${pctTxt(nivel.pct)}</small></div>
         <div><span class="cm-rot">Contratos fechados</span><b>${total}</b><small>${prox ? `faltam ${prox.a_partir - total} para ${esc(prox.nome)}` : 'nível máximo'}</small></div>
@@ -171,13 +181,15 @@
 
     $('#t-cm').innerHTML = minhas.sort((a, b) => b.r.fim.localeCompare(a.r.fim)).map(x => {
       const r = x.r, d = r.d;
-      const p1 = r.p1 ? `${brl(x.valor / 2)} <small>em ${fmt.month(dates.ym(r.p1))}</small>` : `${brl(x.valor / 2)} <small class="cm-pend">aguardando taxa</small>`;
-      const p2 = `${brl(x.valor / 2)} <small>em ${fmt.month(dates.ym(r.p2))}</small>`;
+      const p1 = r.upsell
+        ? (r.p1 ? `${brl(x.valor)} <small>pagamento único em ${fmt.month(dates.ym(r.p1))}</small>` : `${brl(x.valor)} <small class="cm-pend">aguardando 1º pagamento</small>`)
+        : r.p1 ? `${brl(x.valor / 2)} <small>em ${fmt.month(dates.ym(r.p1))}</small>` : `${brl(x.valor / 2)} <small class="cm-pend">aguardando taxa</small>`;
+      const p2 = r.upsell ? '<span class="muted">—</span>' : `${brl(x.valor / 2)} <small>em ${fmt.month(dates.ym(r.p2))}</small>`;
       return `<tr class="${dates.ym(r.fim) === mes ? 'cm-mes' : ''}">
         <td><b>${esc(d.titulo || d.empresa?.nome || 'Negociação')}</b><small class="cm-sub">${esc(r.origem)}${r.excede ? ' · <span class="cm-pend">passa de 100% do orçamento</span>' : ''}</small></td>
         <td>${fmt.date(r.fim)}</td>
-        <td class="num">${mensalidade(d) ? brl(mensalidade(d)) : '<span class="cm-pend">sem valor</span>'}</td>
-        <td class="num">${brl(r.B)}</td>
+        <td class="num">${mensalidade(d) ? (r.upsell ? '+' : '') + brl(mensalidade(d)) + (r.upsell ? ' <small>aumento</small>' : '') : '<span class="cm-pend">sem valor</span>'}</td>
+        <td class="num">${r.upsell ? '<span class="muted">—</span>' : brl(r.B)}</td>
         <td>${esc(x.papel)}</td>
         <td class="num">${pctTxt(x.pct)}</td>
         <td class="num"><b>${brl(x.valor)}</b></td>
@@ -203,7 +215,7 @@
         <h3>Orçamento, acelerador e origem</h3><div class="form-grid">
           ${campo('orcamento_pct', 'Orçamento (% da receita fixa de 12 meses)')}${campo('acelerador_pp', 'Acelerador', 'p.p.')}${campo('acelerador_a_partir', 'Acelerador a partir da venda nº', 'ª')}
           ${campo('marketing_pct', 'Origem Marketing')}${campo('prospeccao_pct', 'Origem prospecção ativa')}${campo('reaquecimento_pct', 'Origem reaquecimento da base')}
-          ${campo('fundo_pct', 'Fundo Kairós')}${campo('coexecutor_pct', 'Coexecutor em venda compartilhada')}</div>
+          ${campo('fundo_pct', 'Fundo Kairós')}${campo('coexecutor_pct', 'Coexecutor em venda compartilhada')}${campo('upsell_pct', 'Upsell (sobre o aumento na mensalidade)')}</div>
         <h3>Liderança e direção</h3><div class="form-grid">
           ${texto('lider', 'Liderança comercial')}${texto('lider_aliases', 'Outros nomes no CRM (separados por vírgula)')}
           ${campo('lider_junior_pct', 'Liderança sobre júnior')}${campo('lider_pleno_pct', 'Liderança sobre pleno')}
