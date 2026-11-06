@@ -924,3 +924,29 @@ button.link:hover { text-decoration: underline; }
 .up-acoes { display: flex; gap: 10px; flex: none; }
 .upsells #add-upsell { justify-self: start; }
 .sec-nota { margin: 0 8px 6px; }
+
+/* CRM em lista + ações em massa */
+.modo-crm { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 3px; gap: 2px; }
+.modo-crm button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); cursor: pointer; }
+.modo-crm button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.lista-crm .table-card { margin-top: 0; }
+.lista-crm table.data td { vertical-align: middle; }
+.lista-crm table.data th.sel, .lista-crm table.data td.sel { width: 36px; padding-right: 0; cursor: default; }
+.lista-crm table.data input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand); }
+.lista-crm table.data tr.marcada { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.lista-crm .l-titulo { font-weight: 700; white-space: normal; min-width: 200px; }
+.lista-crm .l-sub { display: block; font-size: var(--fs-xs); color: var(--text-2); font-weight: 400; }
+.lista-crm .l-etapa { font-size: var(--fs-2xs); font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--accent-50); color: var(--accent-700); }
+.lista-crm .l-etapa.won { background: var(--good-bg, #e3f6ec); color: var(--good-text, #1b7a4c); }
+.lista-crm .l-etapa.lost { background: var(--critical-bg); color: var(--critical-text); }
+.lista-crm .l-tarefa.atrasada { color: var(--critical-text); font-weight: 600; }
+.lista-crm .l-tarefa.hoje { color: var(--accent-700); font-weight: 600; }
+.lista-crm th .seta { opacity: .6; margin-left: 4px; }
+.massa { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+  background: var(--brand); color: #fff; border-radius: var(--radius); padding: 10px 14px; box-shadow: var(--shadow); }
+.massa b { margin-right: 6px; }
+.massa .btn { background: rgba(255,255,255,.12); color: #fff; border-color: transparent; }
+.massa .btn:hover { background: rgba(255,255,255,.22); }
+.massa .btn.danger { background: rgba(255,90,90,.25); }
+.massa .link-btn { color: #fff; margin-left: auto; opacity: .85; }
+.lista-vazia { padding: 28px; text-align: center; color: var(--muted); }

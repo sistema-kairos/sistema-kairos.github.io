@@ -354,7 +354,7 @@
       ...new Set(lista.filter(d => d.etapa === PERDIDO && !ETAPAS_PERDA.includes(d.perdido_etapa)).map(colunaDe))];
     const cols = [...ETAPAS, ...($('#f-perdidos').checked ? perdas : [])];
     const ordem = (a, b) => (b.etapa_desde || '').localeCompare(a.etapa_desde || '');
-    board.innerHTML = cols.map((etapa, i) => {
+    if (modo === 'quadro') board.innerHTML = cols.map((etapa, i) => {
       const ds = lista.filter(d => colunaDe(d) === etapa).sort(ordem);
       const total = ds.reduce((s, d) => s + (Number(d.valor_total) || 0), 0);
       const cls = etapaDoLabel(etapa) !== undefined ? `lost${i === ETAPAS.length ? ' first-lost' : ''}` : etapa === FECHADO ? 'won' : '';
@@ -386,14 +386,15 @@
       render();
     }));
 
-    $$('.deal', board).forEach(el => {
+    if (modo === 'lista') renderLista(lista);
+    else $$('.deal', board).forEach(el => {
       el.addEventListener('click', () => abrir(el.dataset.id));
       el.addEventListener('keydown', e => { if (e.key === 'Enter') abrir(el.dataset.id); });
       if (!canEdit) return;
       el.addEventListener('dragstart', e => { dragging = true; e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
       el.addEventListener('dragend', () => { dragging = false; el.classList.remove('dragging'); });
     });
-    if (canEdit) $$('.col', board).forEach(col => {
+    if (canEdit && modo === 'quadro') $$('.col', board).forEach(col => {
       col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('over'); });
       col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) col.classList.remove('over'); });
       col.addEventListener('drop', e => {
@@ -407,6 +408,233 @@
       });
     });
   }
+
+  // ---------- lista + ações em massa ----------
+  // A lista mostra as mesmas negociações filtradas do quadro. A seleção vale só para o que está visível.
+  const selecionados = new Set();
+  let ordemLista = { col: 'etapa_desde', dir: -1 };
+  const COLS_LISTA = [
+    { key: 'titulo', label: 'Negociação', val: d => norm(d.titulo) },
+    { key: 'etapa', label: 'Etapa', val: d => d.etapa === PERDIDO ? 100 + ETAPAS_PERDA.indexOf(d.perdido_etapa) : ETAPAS.indexOf(d.etapa) },
+    { key: 'qualificacao', label: 'SQL', val: d => d.qualificacao || 'z' },
+    { key: 'qualificacao_mkt', label: 'MQL', val: d => d.qualificacao_mkt || 'z' },
+    { key: 'responsavel', label: 'Responsável', val: d => norm(d.responsavel) || 'zzz' },
+    { key: 'tarefa', label: 'Próxima tarefa', val: d => pendentes(d)[0] ? quando(pendentes(d)[0]) : '9999' },
+    { key: 'fonte', label: 'Fonte', val: d => norm(d.fonte) || 'zzz' },
+    { key: 'valor_total', label: 'Valor', num: true, val: d => Number(d.valor_total) || 0 },
+    { key: 'etapa_desde', label: 'Na etapa', val: d => d.etapa_desde || '' },
+    { key: 'criado_em', label: 'Criada em', val: d => d.criado_em || '' },
+  ];
+
+  function linhaLista(d) {
+    const emp = empresaDe(d), t = pendentes(d)[0], dias = diasDesde(d.etapa_desde);
+    const etCls = d.etapa === FECHADO ? 'won' : d.etapa === PERDIDO ? 'lost' : '';
+    const q = v => v ? `<span class="tag q-${norm(v)}">${esc(v)}</span>` : '<span class="muted">—</span>';
+    return `<tr data-id="${esc(d.id)}" class="${selecionados.has(d.id) ? 'marcada' : ''}">
+      ${canEdit ? `<td class="sel"><input type="checkbox" class="sel-um" ${selecionados.has(d.id) ? 'checked' : ''} aria-label="Selecionar ${esc(d.titulo || 'negociação')}"></td>` : ''}
+      <td class="l-titulo">${esc(d.titulo || 'Sem nome')}${emp.nome || emp.hub ? `<span class="l-sub">${esc([emp.nome, emp.hub].filter(Boolean).join(' · '))}</span>` : ''}</td>
+      <td><span class="l-etapa ${etCls}">${esc(colunaDe(d))}</span></td>
+      <td>${q(d.qualificacao)}</td>
+      <td>${q(d.qualificacao_mkt)}</td>
+      <td>${esc(d.responsavel || '—')}</td>
+      <td>${t ? `<span class="l-tarefa ${situacao(t)}">${esc(tituloTarefa(t))} · ${esc(quandoTexto(t))}</span>` : '<span class="muted">Nenhuma</span>'}</td>
+      <td>${esc(d.fonte || '—')}</td>
+      <td class="num">${d.valor_total ? esc(fmt.money(d.valor_total)) : '—'}</td>
+      <td>${dias === null ? '—' : dias === 0 ? 'hoje' : `${dias} d`}</td>
+      <td>${d.criado_em ? esc(fmt.date(d.criado_em.slice(0, 10))) : '—'}</td>
+    </tr>`;
+  }
+
+  function renderLista(lista) {
+    if (!$('#f-perdidos').checked) lista = lista.filter(d => d.etapa !== PERDIDO);
+    const visiveis = new Set(lista.map(d => d.id));
+    [...selecionados].forEach(id => { if (!visiveis.has(id)) selecionados.delete(id); });
+    const col = COLS_LISTA.find(c => c.key === ordemLista.col) || COLS_LISTA[0];
+    const ord = lista.slice().sort((a, b) => {
+      const x = col.val(a), y = col.val(b);
+      return (x < y ? -1 : x > y ? 1 : 0) * ordemLista.dir;
+    });
+    const todos = lista.length && lista.every(d => selecionados.has(d.id));
+    $('#tabela').innerHTML = lista.length ? `<table class="data"><thead><tr>
+        ${canEdit ? `<th class="sel"><input type="checkbox" id="sel-todos" ${todos ? 'checked' : ''} aria-label="Selecionar todas as ${lista.length} negociações"></th>` : ''}
+        ${COLS_LISTA.map(c => `<th class="${c.num ? 'num' : ''}" data-ord="${c.key}">${esc(c.label)}${c.key === ordemLista.col ? `<span class="seta">${ordemLista.dir > 0 ? '↑' : '↓'}</span>` : ''}</th>`).join('')}
+      </tr></thead><tbody>${ord.map(linhaLista).join('')}</tbody></table>`
+      : '<div class="lista-vazia">Nenhuma negociação com esses filtros</div>';
+    const st = $('#sel-todos');
+    if (st) st.indeterminate = !todos && lista.some(d => selecionados.has(d.id));
+    st?.addEventListener('change', () => { lista.forEach(d => st.checked ? selecionados.add(d.id) : selecionados.delete(d.id)); render(); });
+    $$('th[data-ord]', $('#tabela')).forEach(th => th.addEventListener('click', () => {
+      ordemLista = { col: th.dataset.ord, dir: ordemLista.col === th.dataset.ord ? -ordemLista.dir : 1 };
+      render();
+    }));
+    $$('tbody tr', $('#tabela')).forEach(tr => {
+      const cb = $('.sel-um', tr);
+      cb?.addEventListener('change', () => { cb.checked ? selecionados.add(tr.dataset.id) : selecionados.delete(tr.dataset.id); render(); });
+      tr.addEventListener('click', e => { if (!e.target.closest('.sel')) abrir(tr.dataset.id); });
+    });
+    const n = selecionados.size;
+    $('#massa').classList.toggle('hidden', !canEdit || !n);
+    $('#massa-n').textContent = `${n} selecionada${n > 1 ? 's' : ''}`;
+  }
+
+  const escolhidas = () => deals.filter(d => selecionados.has(d.id));
+  async function salvarEmMassa(lista, msg) {
+    const t = now();
+    lista.forEach(d => { d.updated_at = t; });
+    try { await Store.saveMany('crm', lista); }
+    catch (e) { toast('Não foi possível salvar: ' + e.message, 'error'); return; }
+    selecionados.clear();
+    fillFilters();
+    render();
+    toast(msg, 'ok');
+  }
+  async function pessoasEquipe() {
+    let perfis = [];
+    try { perfis = await Store.list('perfis'); } catch {}
+    const nomes = perfis.filter(p => p.papel !== 'Espectador').map(p => p.nome || p.id.split('@')[0]);
+    return [...new Set([...nomes, eu, ...deals.map(d => d.responsavel)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }
+  const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+
+  const ACOES = {
+    async responsavel(lista) {
+      const pessoas = await pessoasEquipe();
+      openModal({
+        title: 'Transferir responsável',
+        body: `<p>${plural(lista.length, 'negociação vai', 'negociações vão')} para:</p>
+          <label class="field"><span>Novo responsável</span><select class="input" id="m-resp">${pessoas.map(p => `<option>${esc(p)}</option>`).join('')}</select></label>
+          <label class="check" style="margin-top:12px"><input type="checkbox" id="m-tarefas" checked> Transferir também as tarefas pendentes</label>`,
+        actions: [{ label: 'Cancelar', cls: 'ghost' }, { label: 'Transferir', cls: 'primary', onClick: async dl => {
+          const novo = $('#m-resp', dl).value, tarefas = $('#m-tarefas', dl).checked;
+          lista.forEach(d => {
+            d.responsavel = novo;
+            if (tarefas) tarefasDe(d).forEach(t => { if (!t.concluida) t.responsavel = novo; });
+          });
+          await salvarEmMassa(lista, `${plural(lista.length, 'negociação transferida', 'negociações transferidas')} para ${novo}`);
+        } }],
+      });
+    },
+    etapa(lista) {
+      const dlg = openModal({
+        title: 'Mudar etapa',
+        body: `<p>Mover ${plural(lista.length, 'negociação', 'negociações')} para:</p>
+          <label class="field"><span>Etapa</span><select class="input" id="m-etapa">
+            <optgroup label="Funil">${ETAPAS.map(e => `<option>${esc(e)}</option>`).join('')}</optgroup>
+            <optgroup label="Perdidos">${ETAPAS_PERDA.map(e => `<option value="${esc(perdidoLabel(e))}">${esc(perdidoLabel(e))}</option>`).join('')}</optgroup></select></label>
+          <label class="field hidden" id="m-motivo-box" style="margin-top:12px"><span>Motivo da perda *</span><select class="input" id="m-motivo">${MOTIVOS.map(m => `<option>${esc(m)}</option>`).join('')}</select></label>`,
+        actions: [{ label: 'Cancelar', cls: 'ghost' }, { label: 'Mover', cls: 'primary', onClick: async dl => {
+          const v = $('#m-etapa', dl).value, perda = etapaDoLabel(v), motivo = $('#m-motivo', dl).value;
+          const etapa = perda !== undefined ? PERDIDO : v;
+          const mudam = lista.filter(d => colunaDe(d) !== v);
+          mudam.forEach(d => {
+            if (etapa === PERDIDO) { d.perdido_etapa = perda; d.motivo_perda = motivo; d.motivo_detalhe = null; }
+            else if (d.etapa === PERDIDO) { d.perdido_etapa = null; d.motivo_perda = null; d.motivo_detalhe = null; }
+            d.etapa = etapa;
+            d.etapa_desde = now();
+            (d.historico = d.historico || []).push({ etapa, em: now(), por: eu, ...(etapa === PERDIDO ? { perdido_em: perda, motivo } : {}) });
+          });
+          if (!mudam.length) { toast('Todas já estavam nessa etapa'); return; }
+          await salvarEmMassa(mudam, `${plural(mudam.length, 'negociação movida', 'negociações movidas')} para ${v}`);
+        } }],
+      });
+      $('#m-etapa', dlg).addEventListener('change', e => $('#m-motivo-box', dlg).classList.toggle('hidden', etapaDoLabel(e.target.value) === undefined));
+    },
+    qualificacao(lista) {
+      const sel = (id, label) => `<label class="field"><span>${label}</span><select class="input" id="${id}">
+        <option value="__manter">Não alterar</option>${QUALIFICACAO.map(q => `<option>${q}</option>`).join('')}<option value="">Sem qualificação</option></select></label>`;
+      openModal({
+        title: 'Alterar qualificação',
+        body: `<p>Para ${plural(lista.length, 'negociação selecionada', 'negociações selecionadas')}:</p>
+          <div class="form-grid">${sel('m-sql', 'Qualificação (SQL)')}${sel('m-mql', 'Qualificação MKT (MQL)')}</div>`,
+        actions: [{ label: 'Cancelar', cls: 'ghost' }, { label: 'Aplicar', cls: 'primary', onClick: async dl => {
+          const sql = $('#m-sql', dl).value, mql = $('#m-mql', dl).value;
+          if (sql === '__manter' && mql === '__manter') { toast('Escolha ao menos uma qualificação para alterar'); return false; }
+          lista.forEach(d => {
+            if (sql !== '__manter') d.qualificacao = sql || null;
+            if (mql !== '__manter') d.qualificacao_mkt = mql || null;
+          });
+          await salvarEmMassa(lista, `Qualificação alterada em ${plural(lista.length, 'negociação', 'negociações')}`);
+        } }],
+      });
+    },
+    async tarefa(lista) {
+      const pessoas = await pessoasEquipe();
+      const dlg = openModal({
+        title: 'Criar tarefa em massa',
+        body: `<p>Cria a mesma tarefa em cada uma das ${plural(lista.length, 'negociação selecionada', 'negociações selecionadas')}.</p>
+          <form class="form-grid" novalidate>
+          <div class="field wide"><span>Tipo</span><div class="tipo-tarefa">${TIPOS_TAREFA.map((x, i) => `<label class="chip ${i === 0 ? 'on' : ''}">
+            <input type="radio" name="tipo" value="${esc(x.tipo)}" ${i === 0 ? 'checked' : ''}>${ICON[x.icon]}${esc(x.tipo)}</label>`).join('')}</div></div>
+          <label class="field wide"><span>Título</span><input class="input" name="titulo" placeholder="Ex.: Follow up da proposta (opcional)"></label>
+          <label class="field"><span>Data *</span><input class="input" type="date" name="data" value="${dates.today()}" required></label>
+          <label class="field"><span>Hora</span><input class="input" type="time" name="hora"></label>
+          <label class="field wide"><span>Responsável</span><select class="input" name="responsavel">
+            <option value="">Responsável de cada negociação</option>${pessoas.map(p => `<option>${esc(p)}</option>`).join('')}</select></label>
+          <label class="field wide"><span>Anotações</span><textarea class="input" name="notas" rows="3"></textarea></label>
+          <div class="field wide atalhos-data"><span class="muted small">Atalhos:</span>
+            ${[['Hoje', 0], ['Amanhã', 1], ['Em 3 dias', 3], ['Em 1 semana', 7]].map(([l, n]) => `<button type="button" class="link-btn" data-dias="${n}">${l}</button>`).join('')}</div>
+          </form>`,
+        actions: [{ label: 'Cancelar', cls: 'ghost' }, { label: 'Criar tarefas', cls: 'primary', onClick: async dl => {
+          const f = $('form', dl);
+          if (!f.reportValidity()) return false;
+          const v = k => f.elements[k].value.trim() || null;
+          const base = { tipo: f.elements.tipo.value, titulo: v('titulo'), data: v('data'), hora: v('hora'), notas: v('notas'), resultado: null };
+          lista.forEach(d => {
+            d.tarefas = [...tarefasDe(d), { id: Store.uid(), ...base, responsavel: v('responsavel') || d.responsavel || eu, concluida: false, criada_em: now(), criada_por: eu }];
+          });
+          await salvarEmMassa(lista, `${plural(lista.length, 'tarefa criada', 'tarefas criadas')}`);
+        } }],
+      });
+      $$('.tipo-tarefa input', dlg).forEach(r => r.addEventListener('change', () => $$('.tipo-tarefa .chip', dlg).forEach(c => c.classList.toggle('on', c.contains(r)))));
+      $$('[data-dias]', dlg).forEach(b => b.addEventListener('click', () => { $('[name=data]', dlg).value = dates.addDays(dates.today(), +b.dataset.dias); }));
+    },
+    fonte(lista) {
+      const fontes = [...new Set([...FONTES, ...deals.map(x => x.fonte).filter(Boolean)])];
+      openModal({
+        title: 'Alterar fonte',
+        body: `<label class="field"><span>Fonte</span><input class="input" id="m-fonte" list="dl-m-fonte" placeholder="Ex.: Indicação">
+          <datalist id="dl-m-fonte">${fontes.map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>`,
+        actions: [{ label: 'Cancelar', cls: 'ghost' }, { label: 'Aplicar', cls: 'primary', onClick: async dl => {
+          const v = $('#m-fonte', dl).value.trim() || null;
+          lista.forEach(d => { d.fonte = v; });
+          await salvarEmMassa(lista, `Fonte alterada em ${plural(lista.length, 'negociação', 'negociações')}`);
+        } }],
+      });
+    },
+    exportar(lista) { exportar(lista); },
+    async excluir(lista) {
+      if (!confirm(`Excluir ${plural(lista.length, 'negociação', 'negociações')} definitivamente? Não dá para desfazer.`)) return;
+      let ok = 0;
+      for (const d of lista) {
+        try { await Store.remove('crm', d.id); ok++; deals = deals.filter(x => x.id !== d.id); }
+        catch (e) { toast(e.message, 'error'); break; }
+      }
+      selecionados.clear();
+      fillFilters();
+      render();
+      if (ok) toast(`${plural(ok, 'negociação excluída', 'negociações excluídas')}`);
+    },
+    limpar() { selecionados.clear(); render(); },
+  };
+  $$('[data-acao]', $('#massa')).forEach(b => b.addEventListener('click', () => {
+    const lista = escolhidas();
+    if (!lista.length && b.dataset.acao !== 'limpar') return toast('Selecione ao menos uma negociação');
+    ACOES[b.dataset.acao](lista);
+  }));
+
+  let modo = (() => { try { return localStorage.getItem('crm_modo') === 'lista' ? 'lista' : 'quadro'; } catch { return 'quadro'; } })();
+  function aplicarModo() {
+    $$('.modo-crm button').forEach(b => { const on = b.dataset.modo === modo; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    board.classList.toggle('hidden', modo === 'lista');
+    $('#lista').classList.toggle('hidden', modo !== 'lista');
+  }
+  $$('.modo-crm button').forEach(b => b.addEventListener('click', () => {
+    modo = b.dataset.modo;
+    try { localStorage.setItem('crm_modo', modo); } catch {}
+    aplicarModo();
+    render();
+  }));
+  aplicarModo();
 
   // ---------- painel de detalhes ----------
   const dis = canEdit ? '' : 'disabled';
@@ -845,7 +1073,7 @@
     URL.revokeObjectURL(a.href);
   }
 
-  function exportar() {
+  function exportar(sel = null) {
     const val = (d, c) => {
       if (c.key === 'etapa') return colunaDe(d);
       if (c.key.startsWith('contato.')) return contatosDe(d)[0][c.key.slice(8)];
@@ -854,18 +1082,18 @@
       if (c.type === 'money') return isBlank(v) ? '' : String(v).replace('.', ',');
       return v;
     };
-    baixarCSV(`crm-${dates.today()}.csv`, [COLUNAS.map(c => c.label), ...filtrados().map(d => COLUNAS.map(c => val(d, c)))]);
+    baixarCSV(`crm-${dates.today()}.csv`, [COLUNAS.map(c => c.label), ...(sel || filtrados()).map(d => COLUNAS.map(c => val(d, c)))]);
   }
 
   // ---------- eventos ----------
   $('#nova')?.addEventListener('click', nova);
   $('#importar')?.addEventListener('click', abrirImportacao);
-  $('#exportar')?.addEventListener('click', exportar);
+  $('#exportar')?.addEventListener('click', () => exportar());
   $('#backdrop').addEventListener('click', fechar);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && openId && !document.querySelector('dialog[open]')) fechar(); });
   ['busca', 'f-resp', 'f-fonte', 'f-qual', 'f-tarefa', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));
   // novos leads do formulário aparecem sozinhos
-  setInterval(() => { if (!openId && !dragging && !document.querySelector('dialog[open]') && !document.hidden) load(); }, 30000);
+  setInterval(() => { if (!openId && !dragging && !selecionados.size && !document.querySelector('dialog[open]') && !document.hidden) load(); }, 30000);
 
   load().then(() => {
     const id = new URLSearchParams(location.search).get('id');
