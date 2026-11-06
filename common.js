@@ -249,3 +249,27 @@ function renderLayout() {
   }
 }
 renderLayout();
+
+// ---------- atualização automática ----------
+// O GitHub Pages deixa o navegador guardar as páginas por até 10 minutos, e dentro do oriondelivery.com.br/SIEA (iframe)
+// o "recarregar" não busca a página nova. Cada publicação grava o número da versão em versao.txt; se a página aberta for
+// de uma versão anterior, ela é recarregada com ?_v=<versão> (endereço novo = o navegador busca a página atualizada).
+(() => {
+  const atual = (document.querySelector('script[src*="common.js"]')?.getAttribute('src').match(/[?&]v=(\d+)/) || [])[1];
+  if (!atual) return;
+  let checando = false;
+  async function conferir() {
+    if (checando || document.querySelector('dialog[open], .drawer.open')) return;   // não interrompe quem está editando
+    checando = true;
+    try {
+      const v = (await (await fetch('versao.txt?t=' + Date.now(), { cache: 'no-store' })).text()).trim();
+      if (/^\d{12}$/.test(v) && v > atual) {
+        const u = new URL(location.href);
+        if (u.searchParams.get('_v') !== v) { u.searchParams.set('_v', v); location.replace(u.href); }
+      }
+    } catch { /* sem internet ou arquivo indisponível: segue com a versão aberta */ }
+    finally { checando = false; }
+  }
+  conferir();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') conferir(); });
+})();
