@@ -950,3 +950,55 @@ button.link:hover { text-decoration: underline; }
 .massa .btn.danger { background: rgba(255,90,90,.25); }
 .massa .link-btn { color: #fff; margin-left: auto; opacity: .85; }
 .lista-vazia { padding: 28px; text-align: center; color: var(--muted); }
+
+/* ---------- CRM: topo, barra de busca/filtros e painel de filtros ---------- */
+.crm-acoes { display: flex; align-items: center; gap: 8px; }
+.menu-mais { position: relative; }
+.menu-mais > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.menu-mais > summary::-webkit-details-marker { display: none; }
+.menu-mais .ico { width: 16px; height: 16px; margin: 0; }
+.menu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 240px; padding: 6px; display: grid; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 10px 30px rgba(11, 60, 82, .15); }
+.menu-pop button { text-align: left; border: 0; background: none; font: inherit; color: var(--text); padding: 9px 12px; border-radius: 10px; cursor: pointer; }
+.menu-pop button:hover { background: var(--surface-2); }
+.crm-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.crm-barra .modo-crm { flex: none; }
+.busca-crm { flex: 1 1 260px; max-width: 460px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px; }
+.busca-crm:focus-within { outline: 2px solid var(--focus); outline-offset: -1px; }
+.busca-crm .ico { width: 16px; height: 16px; margin: 0; color: var(--muted); flex: none; }
+.busca-crm input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; color: var(--text); }
+.btn-filtros { display: inline-flex; align-items: center; gap: 6px; }
+.btn-filtros .ico { width: 16px; height: 16px; margin: 0; }
+.btn-filtros.on { border-color: var(--accent); background: var(--accent-50); color: var(--brand); }
+.btn-filtros .cont { background: var(--brand); color: #fff; border-radius: 999px; font-size: var(--fs-2xs); padding: 1px 7px; }
+.crm-barra .check { margin-left: auto; }
+.filtros-ativos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.fchip { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-50); color: var(--brand); border-radius: 999px;
+  padding: 4px 4px 4px 12px; font-size: var(--fs-xs); font-weight: 600; max-width: 100%; }
+.fchip button { border: 0; background: none; color: inherit; font-size: 16px; line-height: 1; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; }
+.fchip button:hover { background: rgba(11, 60, 82, .1); }
+.crm-resumo { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.crm-resumo .qualif { margin: 0 0 0 auto; }
+.crm-resumo .qcard { padding: 4px 10px 4px 4px; }
+.crm-resumo .qcard b { font-size: var(--fs-sm); }
+/* painel de filtros */
+.fgrade { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.fbloco { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px 12px; margin: 0; min-width: 0; }
+.fbloco legend { font-weight: 700; font-size: var(--fs-sm); padding: 0 4px; }
+.fbloco-ops { display: flex; flex-wrap: wrap; gap: 6px; max-height: 170px; overflow-y: auto; }
+.fop { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--border);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); cursor: pointer; max-width: 100%; }
+.fop input { position: absolute; opacity: 0; pointer-events: none; }
+.fop:hover { border-color: var(--accent); }
+.fop.on { border-color: var(--accent); background: var(--accent-50); color: var(--brand); }
+.fop:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.fbloco-faixa { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fbloco-faixa label { display: grid; gap: 3px; font-size: var(--fs-xs); color: var(--text-2); }
+@media (max-width: 640px) {
+  .crm-acoes { width: 100%; }
+  .crm-acoes .btn.primary { flex: 1; }
+  .busca-crm { max-width: none; order: 3; flex-basis: 100%; }
+  .crm-barra .check { margin-left: 0; }
+  .crm-resumo .qualif { margin-left: 0; }
+}

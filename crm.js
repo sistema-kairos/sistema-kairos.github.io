@@ -291,35 +291,117 @@
   }
 
   // ---------- quadro ----------
+  // ---------- filtros (aba "Filtros": qualquer campo da negociação) ----------
+  // filtros = { chave: [valores] } para listas, { min, max } para faixas e { de, ate } para datas. Fica salvo neste navegador.
+  const VAZIO = 'Não informado';
+  const TAREFAS_F = ['Com tarefa atrasada', 'Com tarefa para hoje', 'Com tarefa futura', 'Sem tarefa agendada'];
+  const OBJETIVOS = ['Ganhar comodidade e tempo livre', 'Vender em novos bairros', 'Entregar mais rápido e com frete mais barato para o cliente', 'Testar uma nova marca ou produto', 'Tirar o delivery da minha loja'];
+  const valoresDe = fn => [...new Set(deals.map(fn).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const FILTROS = [
+    { k: 'etapa', label: 'Etapa', valor: d => colunaDe(d), opcoes: () => [...ETAPAS, ...ETAPAS_PERDA.map(perdidoLabel)] },
+    { k: 'responsavel', label: 'Responsável', valor: d => d.responsavel || VAZIO, opcoes: () => [...valoresDe(d => d.responsavel), VAZIO] },
+    { k: 'tarefas', label: 'Tarefas', opcoes: () => TAREFAS_F, teste: (d, vals) => {
+      const sts = pendentes(d).map(situacao);
+      return vals.some(v => v === 'Com tarefa atrasada' ? sts.includes('atrasada') : v === 'Com tarefa para hoje' ? sts.includes('hoje')
+        : v === 'Com tarefa futura' ? sts.some(x => x !== 'atrasada' && x !== 'hoje') : !sts.length && d.etapa !== PERDIDO && d.etapa !== FECHADO);
+    } },
+    { k: 'qualificacao', label: 'Qualificação (SQL)', valor: d => d.qualificacao || 'Sem qualificação', opcoes: () => [...QUALIFICACAO, 'Sem qualificação'] },
+    { k: 'qualificacao_mkt', label: 'Qualificação MKT (MQL)', valor: d => d.qualificacao_mkt || 'Sem qualificação', opcoes: () => [...QUALIFICACAO, 'Sem qualificação'] },
+    { k: 'fonte', label: 'Fonte', valor: d => d.fonte || VAZIO, opcoes: () => [...valoresDe(d => d.fonte), VAZIO] },
+    { k: 'campanha', label: 'Campanha', valor: d => d.campanha || VAZIO, opcoes: () => [...valoresDe(d => d.campanha), VAZIO] },
+    { k: 'hub', label: 'Hub', valor: d => empresaDe(d).hub || VAZIO, opcoes: () => [...HUBS_CRM, VAZIO] },
+    { k: 'objetivo', label: 'Objetivo do cliente', valor: d => d.objetivo || VAZIO, opcoes: () => [...OBJETIVOS, VAZIO] },
+    { k: 'situacao_delivery', label: 'Delivery hoje', valor: d => d.situacao_delivery || VAZIO, opcoes: () => ['Já vendo por delivery', 'Parei com o delivery', 'Nunca vendi', VAZIO] },
+    { k: 'vende_apps', label: 'Vende em apps', valor: d => d.vende_apps || VAZIO, opcoes: () => ['Sim, vendo nos apps', 'Não vendo por apps', VAZIO] },
+    { k: 'num_pedidos', label: 'Pedidos por mês', valor: d => d.num_pedidos || empresaDe(d).num_pedidos || VAZIO, opcoes: () => [...PEDIDOS, VAZIO] },
+    { k: 'prazo_inicio', label: 'Quer começar', valor: d => d.prazo_inicio || VAZIO, opcoes: () => ['Imediatamente', 'Entre 1 e 3 meses', 'Acima de 3 meses', VAZIO] },
+    { k: 'motivo_perda', label: 'Motivo da perda', valor: d => d.etapa === PERDIDO ? (d.motivo_perda || VAZIO) : null, opcoes: () => [...MOTIVOS, VAZIO] },
+    { k: 'valor', label: 'Valor (R$)', tipo: 'faixa', valor: d => Number(d.valor_total) || 0 },
+    { k: 'parada', label: 'Dias parada na etapa', tipo: 'faixa', valor: d => diasDesde(d.etapa_desde) ?? 0 },
+    { k: 'criado', label: 'Criada em', tipo: 'datas', valor: d => (d.criado_em || '').slice(0, 10) },
+    { k: 'previsao', label: 'Previsão de fechamento', tipo: 'datas', valor: d => d.previsao_fechamento || '' },
+  ];
+  let filtros = (() => { try { return JSON.parse(localStorage.getItem('gh_crm_filtros')) || {}; } catch { return {}; } })();
+  const ativo = f => { const v = filtros[f.k]; return f.tipo ? !!v && (!isBlank(v.min ?? v.de) || !isBlank(v.max ?? v.ate)) : Array.isArray(v) && v.length > 0; };
+  function guardarFiltros() { try { localStorage.setItem('gh_crm_filtros', JSON.stringify(filtros)); } catch {} }
+  function passa(d, f) {
+    const v = filtros[f.k];
+    if (f.teste) return f.teste(d, v);
+    const x = f.valor(d);
+    if (f.tipo === 'faixa') return (isBlank(v.min) || x >= v.min) && (isBlank(v.max) || x <= v.max);
+    if (f.tipo === 'datas') return !!x && (isBlank(v.de) || x >= v.de) && (isBlank(v.ate) || x <= v.ate);
+    return x !== null && v.includes(x);
+  }
   function filtrados() {
     const q = norm($('#busca').value);
-    const resp = $('#f-resp').value, fonte = $('#f-fonte').value, qual = $('#f-qual').value, tar = $('#f-tarefa').value;
+    const usados = FILTROS.filter(ativo);
     return deals.filter(d => {
-      if (tar) {
-        const sts = pendentes(d).map(situacao);
-        if (tar === 'atrasadas' && !sts.includes('atrasada')) return false;
-        if (tar === 'hoje' && !sts.some(x => x === 'hoje' || x === 'atrasada')) return false;
-        if (tar === 'sem' && (sts.length || d.etapa === PERDIDO || d.etapa === FECHADO)) return false;
-      }
-      if (resp && (d.responsavel || '') !== resp) return false;
-      if (qual && (d.qualificacao || 'sem') !== qual) return false;
-      if (fonte && (d.fonte || '') !== fonte) return false;
+      if (!usados.every(f => passa(d, f))) return false;
       if (!q) return true;
       const txt = [d.titulo, d.fonte, d.campanha, d.responsavel, empresaDe(d).nome, empresaDe(d).loja_ifood,
         ...contatosDe(d).flatMap(c => [c.nome, c.telefone, c.email])].map(norm).join(' ');
       return txt.includes(q) || (digits(q).length >= 4 && contatosDe(d).some(c => digits(c.telefone).includes(digits(q))));
     });
   }
-
-  function fillFilters() {
-    const opts = (sel, label, vals) => {
-      const cur = sel.value;
-      sel.innerHTML = `<option value="">${label}</option>` + [...new Set(vals.filter(Boolean))].sort().map(v => `<option>${esc(v)}</option>`).join('');
-      sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
-    };
-    opts($('#f-resp'), 'Responsável: todos', deals.map(d => d.responsavel));
-    opts($('#f-fonte'), 'Fonte: todas', deals.map(d => d.fonte));
+  const textoFiltro = f => {
+    const v = filtros[f.k];
+    if (f.tipo === 'faixa') return `${f.label}: ${isBlank(v.min) ? '' : 'de ' + fmt.num(v.min, 0) + ' '}${isBlank(v.max) ? '' : 'até ' + fmt.num(v.max, 0)}`.trim();
+    if (f.tipo === 'datas') return `${f.label}: ${isBlank(v.de) ? '' : 'de ' + fmt.date(v.de) + ' '}${isBlank(v.ate) ? '' : 'até ' + fmt.date(v.ate)}`.trim();
+    return `${f.label}: ${v.length > 2 ? `${v.slice(0, 2).join(', ')} +${v.length - 2}` : v.join(', ')}`;
+  };
+  function mostrarFiltrosAtivos() {
+    const usados = FILTROS.filter(ativo), box = $('#filtros-ativos');
+    $('#n-filtros').textContent = usados.length;
+    $('#n-filtros').classList.toggle('hidden', !usados.length);
+    $('#btn-filtros').classList.toggle('on', usados.length > 0);
+    box.classList.toggle('hidden', !usados.length);
+    box.innerHTML = usados.map(f => `<span class="fchip">${esc(textoFiltro(f))}<button type="button" data-tirar="${f.k}" aria-label="Remover filtro ${esc(f.label)}">×</button></span>`).join('')
+      + (usados.length ? '<button type="button" class="link-btn" id="limpar-filtros">Limpar filtros</button>' : '');
+    $$('[data-tirar]', box).forEach(b => b.addEventListener('click', () => { delete filtros[b.dataset.tirar]; guardarFiltros(); render(); }));
+    $('#limpar-filtros', box)?.addEventListener('click', () => { filtros = {}; guardarFiltros(); render(); });
   }
+  function abrirFiltros() {
+    const rascunho = structuredClone(filtros);
+    const bloco = f => {
+      const v = rascunho[f.k];
+      if (f.tipo) {
+        const [a, b, t] = f.tipo === 'faixa' ? ['min', 'max', 'number'] : ['de', 'ate', 'date'];
+        return `<fieldset class="fbloco"><legend>${esc(f.label)}</legend><div class="fbloco-faixa">
+          <label><span>${f.tipo === 'faixa' ? 'De' : 'De'}</span><input class="input" type="${t}" data-f="${f.k}" data-c="${a}" value="${esc(v?.[a] ?? '')}"></label>
+          <label><span>Até</span><input class="input" type="${t}" data-f="${f.k}" data-c="${b}" value="${esc(v?.[b] ?? '')}"></label></div></fieldset>`;
+      }
+      const ops = f.opcoes();
+      return `<fieldset class="fbloco"><legend>${esc(f.label)}</legend><div class="fbloco-ops">${ops.map(o => `<label class="fop ${v?.includes(o) ? 'on' : ''}">
+        <input type="checkbox" data-f="${f.k}" value="${esc(o)}" ${v?.includes(o) ? 'checked' : ''}>${esc(o)}</label>`).join('') || '<span class="muted small">Sem valores ainda</span>'}</div></fieldset>`;
+    };
+    const dlg = openModal({
+      title: 'Filtros', wide: true,
+      body: `<p class="small muted">Marque o que quer ver. Dentro de cada grupo vale qualquer uma das opções; entre grupos, todas as condições.</p>
+        <div class="fgrade">${FILTROS.map(bloco).join('')}</div>`,
+      actions: [
+        { label: 'Limpar tudo', cls: 'ghost left', onClick: () => { filtros = {}; guardarFiltros(); render(); } },
+        { label: 'Cancelar', cls: 'ghost' },
+        { label: 'Aplicar filtros', cls: 'primary', onClick: d => {
+          const novo = {};
+          FILTROS.forEach(f => {
+            if (f.tipo) {
+              const [a, b] = f.tipo === 'faixa' ? ['min', 'max'] : ['de', 'ate'];
+              const ler = c => { const el = $(`[data-f="${f.k}"][data-c="${c}"]`, d); return f.tipo === 'faixa' ? parse.num(el.value) : (el.value || null); };
+              const x = { [a]: ler(a), [b]: ler(b) };
+              if (!isBlank(x[a]) || !isBlank(x[b])) novo[f.k] = x;
+            } else {
+              const vals = $$(`input[data-f="${f.k}"]:checked`, d).map(i => i.value);
+              if (vals.length) novo[f.k] = vals;
+            }
+          });
+          filtros = novo; guardarFiltros(); render();
+        } },
+      ],
+    });
+    $$('.fop input', dlg).forEach(i => i.addEventListener('change', () => i.closest('.fop').classList.toggle('on', i.checked)));
+  }
+
+  function fillFilters() { mostrarFiltrosAtivos(); }
 
   function cardHTML(d) {
     const emp = empresaDe(d);
@@ -348,6 +430,7 @@
   }
 
   function render() {
+    mostrarFiltrosAtivos();
     const lista = filtrados();
     // colunas de perda: uma por etapa do funil (+ perdas antigas sem etapa registrada, se houver)
     const perdas = [...ETAPAS_PERDA.map(perdidoLabel),
@@ -372,17 +455,22 @@
     $('#resumo').innerHTML = `${abertas.length} em aberto · ${esc(fmt.money(valorAberto))} em negociação · ${lista.filter(d => d.etapa === FECHADO).length} fechadas`
       + (nAtr ? ` · <button class="link-btn danger" data-tar="atrasadas">${nAtr} tarefa${nAtr > 1 ? 's' : ''} atrasada${nAtr > 1 ? 's' : ''}</button>` : '')
       + (nHoje ? ` · <button class="link-btn" data-tar="hoje">${nHoje} para hoje</button>` : '');
-    $$('[data-tar]', $('#resumo')).forEach(b => b.addEventListener('click', () => { $('#f-tarefa').value = b.dataset.tar; render(); }));
+    $$('[data-tar]', $('#resumo')).forEach(b => b.addEventListener('click', () => {
+      filtros.tarefas = [b.dataset.tar === 'atrasadas' ? 'Com tarefa atrasada' : 'Com tarefa para hoje']; guardarFiltros(); render();
+    }));
     // métricas por qualificação das negociações em aberto
     const porQ = q => abertas.filter(d => (d.qualificacao || 'sem') === q);
     $('#qualif').innerHTML = [...QUALIFICACAO, 'sem'].map(q => {
       const ds = porQ(q), v = ds.reduce((s, d) => s + (Number(d.valor_total) || 0), 0);
-      return `<button class="qcard ${$('#f-qual').value === q ? 'on' : ''}" data-q="${q}" title="Filtrar por ${q === 'sem' ? 'sem qualificação' : q}">
+      const qv = q === 'sem' ? 'Sem qualificação' : q;
+      return `<button class="qcard ${filtros.qualificacao?.length === 1 && filtros.qualificacao[0] === qv ? 'on' : ''}" data-q="${q}" title="Filtrar por ${q === 'sem' ? 'sem qualificação' : q}">
         <span class="tag q-${q === 'sem' ? 'sem' : norm(q)}">${q === 'sem' ? 'Sem qualificação' : q}</span>
         <b>${ds.length}</b><span class="muted small">${abertas.length ? Math.round(ds.length / abertas.length * 100) : 0}% · ${fmt.moneyShort(v)}</span></button>`;
     }).join('');
     $$('.qcard', $('#qualif')).forEach(b => b.addEventListener('click', () => {
-      $('#f-qual').value = $('#f-qual').value === b.dataset.q ? '' : b.dataset.q;
+      const qv = b.dataset.q === 'sem' ? 'Sem qualificação' : b.dataset.q;
+      if (filtros.qualificacao?.length === 1 && filtros.qualificacao[0] === qv) delete filtros.qualificacao; else filtros.qualificacao = [qv];
+      guardarFiltros();
       render();
     }));
 
@@ -1091,7 +1179,11 @@
   $('#exportar')?.addEventListener('click', () => exportar());
   $('#backdrop').addEventListener('click', fechar);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && openId && !document.querySelector('dialog[open]')) fechar(); });
-  ['busca', 'f-resp', 'f-fonte', 'f-qual', 'f-tarefa', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));
+  ['busca', 'f-perdidos'].forEach(id => $('#' + id).addEventListener(id === 'busca' ? 'input' : 'change', render));
+  $('#btn-filtros').addEventListener('click', abrirFiltros);
+  // menu "Mais": fecha ao escolher uma opção ou clicar fora
+  $$('.menu-pop button').forEach(b => b.addEventListener('click', () => $('.menu-mais').removeAttribute('open')));
+  document.addEventListener('click', e => { if (!e.target.closest('.menu-mais')) $('.menu-mais')?.removeAttribute('open'); });
   // novos leads do formulário aparecem sozinhos
   setInterval(() => { if (!openId && !dragging && !selecionados.size && !document.querySelector('dialog[open]') && !document.hidden) load(); }, 30000);
 
