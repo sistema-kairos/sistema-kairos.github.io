@@ -14,7 +14,7 @@
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
   const agendado = p => p.status === 'Publicado' && p.publicado_em && new Date(p.publicado_em) > new Date();
   const situacao = p => p.status !== 'Publicado' ? 'Rascunho' : agendado(p) ? 'Agendado' : 'Publicado';
-  const linkDe = p => `${SITE}/blog?p=${encodeURIComponent(p.slug)}`;
+  const linkDe = p => `${SITE}/blog/${encodeURIComponent(p.slug)}`;
   const paraInput = iso => { if (!iso) return ''; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 
   // ---------- imagens: reduz no navegador e envia para o Storage do Supabase (bucket público 'blog') ----------
@@ -92,7 +92,7 @@
       body: `<form class="form-grid blog-form" novalidate>
         <label class="field wide"><span>Título *</span><input class="input" name="titulo" value="${esc(base.titulo || '')}" required maxlength="110" ${ro}
           placeholder="Ex.: 5 jeitos de vender mais no iFood sem abrir loja nova"></label>
-        <label class="field wide"><span>Endereço do post</span><div class="blog-slug"><span class="muted small">oriondelivery.com.br/blog?p=</span>
+        <label class="field wide"><span>Endereço do post</span><div class="blog-slug"><span class="muted small">oriondelivery.com.br/blog/</span>
           <input class="input" name="slug" value="${esc(base.slug || '')}" ${ro} placeholder="gerado a partir do título"></div></label>
         <label class="field wide"><span>Resumo (aparece no Google e na lista do blog) <b class="muted small" id="cont-resumo"></b></span>
           <textarea class="input" name="resumo" rows="2" maxlength="200" ${ro} placeholder="Uma ou duas frases sobre o post, até 160 caracteres">${esc(base.resumo || '')}</textarea></label>
