@@ -48,6 +48,8 @@ window.textoBlog = (() => {
 //   /blog?p=<endereco> endereço antigo: redireciona para /blog/<endereco>
 //   /sitemap.xml       páginas fixas + todos os posts publicados, sempre atualizado
 const SITE = 'https://oriondelivery.com.br';
+// IndexNow: avisa Bing, Yahoo, DuckDuckGo e outros buscadores na hora em que um post sai (o Google lê pelo sitemap)
+const INDEXNOW_KEY = '92f82e81d683cb7499e14f66a6f6ee47';
 const PAGINAS = [
   { loc: '/', prioridade: '1.0' },
   { loc: '/dark-kitchen', prioridade: '0.8' },
@@ -149,12 +151,26 @@ async function sitemap(env) {
     { headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=300' } });
 }
 
+async function avisarBuscadores(env) {
+  const posts = await rpc(env, 'blog_publico');
+  const limite = Date.now() - 40 * 60 * 1000;   // roda a cada 30 min: pega o que saiu desde a última vez
+  const novos = posts.filter(p => new Date(p.publicado_em).getTime() > limite).map(p => `${SITE}/blog/${encodeURIComponent(p.slug)}`);
+  if (!novos.length) return;
+  const r = await fetch('https://api.indexnow.org/indexnow', {
+    method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ host: 'oriondelivery.com.br', key: INDEXNOW_KEY, keyLocation: `${SITE}/${INDEXNOW_KEY}.txt`, urlList: [...novos, `${SITE}/blog`] }),
+  });
+  console.log('IndexNow', r.status, novos);
+}
+
 export default {
+  async scheduled(evento, env, ctx) { ctx.waitUntil(avisarBuscadores(env).catch(e => console.error(e))); },
   async fetch(req, env) {
     const url = new URL(req.url);
     const caminho = url.pathname.replace(/\/+$/, '') || '/';
     try {
       if (caminho === '/sitemap.xml') return await sitemap(env);
+      if (caminho === '/' + INDEXNOW_KEY + '.txt') return new Response(INDEXNOW_KEY, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
       if (caminho === '/blog' || caminho === '/blog.html') {
         const p = url.searchParams.get('p');
         if (p) return Response.redirect(`${SITE}/blog/${encodeURIComponent(p)}`, 301);

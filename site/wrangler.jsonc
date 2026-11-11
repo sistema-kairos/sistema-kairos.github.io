@@ -8,11 +8,12 @@
     "directory": "./public",
     "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
-    "run_worker_first": ["/blog", "/blog/*", "/blog.html", "/sitemap.xml"]
+    "run_worker_first": ["/blog", "/blog/*", "/blog.html", "/sitemap.xml", "/92f82e81d683cb7499e14f66a6f6ee47.txt"]
   },
   "vars": {
     "SUPABASE_URL": "https://gmkazwyddaptsjapuxri.supabase.co",
     "SUPABASE_ANON_KEY": "sb_publishable_CY6lKEx7BmmMU_oSKvW3Vg_obo09xXM"
   },
+  "triggers": { "crons": ["*/30 * * * *"] },
   "observability": { "enabled": true }
 }
