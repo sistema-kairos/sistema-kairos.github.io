@@ -10,6 +10,8 @@
   async function carregar() {
     try {
       [regs, rotinas, cs, fat] = await Promise.all([Store.list('cs_semana'), Store.list('cs_rotina').catch(() => []), Store.list('cs').catch(() => []), Fat.carregar().catch(() => null)]);
+      Estagio.usarModelo(rotinas.find(r => r.id === 'modelo'));
+      rotinas = rotinas.filter(r => r.usuario);
     } catch (e) { toast('Erro ao carregar: ' + e.message, 'error'); }
     // administradores e gestores escolhem de quem é o registro
     const pessoas = [...new Map([[Estagio.email(), Estagio.nome()], ...regs.map(r => [r.usuario, r.nome || r.usuario])]).entries()];

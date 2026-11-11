@@ -35,27 +35,47 @@ const Estagio = (() => {
       default: return null;
     }
   }
-  function rotina(iso) {
-    const dow = dates.toDate(iso).getDay();
-    if (dow === 0 || dow === 6) return [];
-    const [bloco, tarde] = blocoDoDia(dow);
-    // nos dias de faturamento, a análise da planilha entra no lugar do bloco das 16h
-    const fecha = typeof Fat !== 'undefined' ? Fat.diaDeAnalise(iso) : null;
-    const fim = fecha
-      ? { id: 'faturamento', titulo: `Faturamento: clientes que fecham dia ${String(fecha).padStart(2, '0')}`, desc: 'Conferir o faturamento do mês na planilha: quem está abaixo da meta do espaço, quem caiu muito em relação ao mês anterior e quais clientes estão inativos. Marcar reunião com quem estiver com vendas muito baixas ou com variação muito forte.', ind: 'N, S', link: { href: 'cs-faturamento.html', txt: 'Abrir Faturamento dos clientes' } }
-      : tarde;
+  // rotina padrão de um dia da semana (1 = segunda … 5 = sexta). 'fat: true' = nos dias de faturamento, vira a análise da planilha.
+  function padrao(dow) {
+    const [bloco, tarde] = blocoDoDia(dow).map(b => ({ ...b, link: b.link ? { ...b.link } : undefined }));
     return [
       { id: 'chatpro1', ini: '13:00', fim: '13:45', titulo: 'ChatPro: pendências', desc: 'Resolver todas as pendências do ChatPro (1ª rodada do dia).', ind: 'A, B, C' },
-      { id: 'conversas', ini: '13:45', fim: '14:15', titulo: `Conversa com ${CONVERSAS_DIA} clientes`, desc: `Mandar mensagem para os ${CONVERSAS_DIA} clientes do dia, começando pelos de menor volume (lista abaixo). Seja interessante antes de ser interesseiro: leve algo útil para o cliente.`, ind: 'D, E' },
+      { id: 'conversas', ini: '13:45', fim: '14:15', titulo: 'Conversa com os clientes do dia', desc: 'Mandar mensagem para os clientes do dia, começando pelos de menor volume (lista abaixo). Seja interessante antes de ser interesseiro: leve algo útil para o cliente.', ind: 'D, E' },
       { id: 'expedicao', ini: '14:15', fim: '14:30', titulo: 'Fotos dos espaços e problemas na operação', desc: 'Pedir para a expedição tirar foto dos espaços de todos os clientes. Na mesma mensagem, perguntar se algum cliente está dando muito problema na operação.', ind: 'I, L' },
       { ...bloco, ini: '14:30', fim: '16:00' },
-      { ...fim, ini: '16:00', fim: '17:00' },
+      { ...tarde, ini: '16:00', fim: '17:00', fat: true },
       { id: 'retornos', ini: '17:00', fim: '18:00', titulo: 'Retornos e indicações', desc: 'Responder os clientes do dia, fechar o que ficou em aberto e, com quem a conversa foi boa, pedir uma indicação. Meta: 1 indicação para cada 2 clientes no mês.', ind: 'D, O' },
       { id: 'chatpro2', ini: '18:00', fim: '18:45', titulo: 'ChatPro: pendências', desc: 'Resolver as pendências do ChatPro (2ª rodada do dia).', ind: 'A, B, C' },
       dow === 5
         ? { id: 'fechamento', ini: '18:45', fim: '19:00', titulo: 'Fechamento e registro semanal', desc: 'Anotar o que ficou para segunda e lançar no Registro semanal as ações da semana.', ind: '' }
         : { id: 'fechamento', ini: '18:45', fim: '19:00', titulo: 'Fechamento', desc: 'Anotar o que ficou para amanhã: reuniões marcadas, soluções propostas e indicações.', ind: '' },
     ];
+  }
+
+  // ---------- rotina editável (CS → Rotina do dia → Editar rotina) ----------
+  // Fica em 'cs_rotina' id 'modelo': { modelo: true, versoes: [{ desde: 'AAAA-MM-DD', dias: { 1: [blocos], … 5: [...] }, regras: [...], conversas_dia, por, em }] }
+  // Cada mudança vira uma versão nova a partir do dia em que foi salva: os dias anteriores continuam com a rotina da época.
+  let versoes = [];
+  function usarModelo(rec) {
+    versoes = (rec?.versoes || []).filter(v => v && v.desde && v.dias).sort((a, b) => a.desde.localeCompare(b.desde));
+    const v = versaoDe(dates.today());
+    api.CONVERSAS_DIA = v && +v.conversas_dia > 0 ? +v.conversas_dia : CONVERSAS_DIA;
+    api.REGRAS = v?.regras?.length ? v.regras : REGRAS;
+  }
+  const versaoDe = iso => versoes.filter(v => v.desde <= iso).pop() || null;
+  const modeloPadrao = () => ({ dias: Object.fromEntries([1, 2, 3, 4, 5].map(d => [d, padrao(d)])), regras: REGRAS.slice(), conversas_dia: CONVERSAS_DIA });
+  const modeloAtual = () => { const v = versaoDe(dates.today()); return v ? JSON.parse(JSON.stringify(v)) : modeloPadrao(); };
+
+  function rotina(iso) {
+    const dow = dates.toDate(iso).getDay();
+    if (dow === 0 || dow === 6) return [];
+    const v = versaoDe(iso);
+    const blocos = v ? (v.dias[dow] || v.dias[String(dow)] || []) : padrao(dow);
+    // nos dias de faturamento, a análise da planilha entra no lugar do bloco marcado
+    const fecha = typeof Fat !== 'undefined' ? Fat.diaDeAnalise(iso) : null;
+    return blocos.map(b => b.fat && fecha
+      ? { id: 'faturamento', ini: b.ini, fim: b.fim, titulo: `Faturamento: clientes que fecham dia ${String(fecha).padStart(2, '0')}`, desc: 'Conferir o faturamento do mês na planilha: quem está abaixo da meta do espaço, quem caiu muito em relação ao mês anterior e quais clientes estão inativos. Marcar reunião com quem estiver com vendas muito baixas ou com variação muito forte.', ind: 'N, S', link: { href: 'cs-faturamento.html', txt: 'Abrir Faturamento dos clientes' } }
+      : b);
   }
   const REGRAS = [
     'O ChatPro fica aberto o tempo todo: a primeira resposta sai em até 15 minutos, mesmo durante os blocos.',
@@ -76,7 +96,7 @@ const Estagio = (() => {
     return {
       dias_chatpro: regs.filter(r => r.feitos?.chatpro1 && r.feitos?.chatpro2).length,
       conversas: regs.reduce((s, r) => s + contatosDe(r), 0) || null,
-      dias_conversas: regs.filter(r => contatosDe(r) >= CONVERSAS_DIA).length,
+      dias_conversas: regs.filter(r => contatosDe(r) >= (+versaoDe(r.data)?.conversas_dia || CONVERSAS_DIA)).length,
       dias_fotos: conta('expedicao'),
       visita_hub: conta('hub') ? 'Sim' : null,
       cardapios: cardapios || null,
@@ -220,6 +240,8 @@ const Estagio = (() => {
     return { anterior, mes };
   }
 
-  return { email, nome, segundaDe, diasUteis, semanaTxt, DIAS, CONVERSAS_DIA, rotina, REGRAS, contatosDe, autoRotina,
-    CAMPOS_SEMANA, CAMPOS, PARES, autoCS, autoPlanilha, INDICADORES, status, valorTxt, contexto };
+  const api = { email, nome, segundaDe, diasUteis, semanaTxt, DIAS, CONVERSAS_DIA, rotina, REGRAS, contatosDe, autoRotina,
+    CAMPOS_SEMANA, CAMPOS, PARES, autoCS, autoPlanilha, INDICADORES, status, valorTxt, contexto,
+    usarModelo, modeloAtual, modeloPadrao, versaoDe };
+  return api;
 })();

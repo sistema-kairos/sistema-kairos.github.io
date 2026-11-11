@@ -6,6 +6,8 @@
   async function carregar() {
     try { [regs, rotinas] = await Promise.all([Store.list('cs_semana'), Store.list('cs_rotina').catch(() => [])]); }
     catch (e) { toast('Erro ao carregar: ' + e.message, 'error'); }
+    Estagio.usarModelo(rotinas.find(r => r.id === 'modelo'));
+    rotinas = rotinas.filter(r => r.usuario);
     const pessoas = [...new Map([...regs, ...rotinas].map(r => [r.usuario, r.nome || r.usuario])).entries()];
     if (!pessoas.some(([e]) => e === pessoa)) pessoas.unshift([pessoa, Estagio.nome()]);
     // abre na pessoa com registro mais recente (o gestor normalmente quer ver o estagiário)

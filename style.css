@@ -1028,3 +1028,15 @@ button.link:hover { text-decoration: underline; }
 .bg-trilho { height: 14px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .bg-trilho i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 .bg-linha b { font-variant-numeric: tabular-nums; }
+
+/* CS → editar rotina */
+.rt-dias { display: flex; gap: 6px; flex-wrap: wrap; margin: 16px 0 12px; }
+.rt-dias .chip.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.rt-blocos { display: grid; gap: 10px; max-height: 52vh; overflow-y: auto; padding-right: 4px; }
+.rt-bloco { display: grid; gap: 10px; padding: 14px; }
+.rt-linha { display: grid; grid-template-columns: 110px 110px 1fr auto; gap: 10px; align-items: end; }
+.rt-bloco .rt-linha + .field + .rt-linha { grid-template-columns: 140px 1fr 1fr; }
+.rt-mover { display: flex; gap: 4px; padding-bottom: 4px; }
+.rt-acoes { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.rt-copia { width: auto; display: inline-block; margin-left: 6px; }
+@media (max-width: 760px) { .rt-linha, .rt-bloco .rt-linha + .field + .rt-linha { grid-template-columns: 1fr 1fr; } }
