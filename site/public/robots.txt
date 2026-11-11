@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://oriondelivery.com.br/sitemap.xml

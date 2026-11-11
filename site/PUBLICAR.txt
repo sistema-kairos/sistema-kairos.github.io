@@ -1,0 +1,8 @@
+Site oriondelivery.com.br (Worker "arthur" na Cloudflare)
+
+A Cloudflare publica esta pasta sozinha a cada Push no GitHub (Worker arthur > Configurações > Build, pasta raiz "site").
+- public/: páginas, imagens e fontes do site
+- worker.js: monta o blog (/blog e /blog/<post>) e o sitemap com os posts publicados no Kairos
+- wrangler.jsonc: configuração do Worker
+
+Os posts do blog não passam por aqui: publicou no Kairos (MKT > Blog do site), já aparece no site.
