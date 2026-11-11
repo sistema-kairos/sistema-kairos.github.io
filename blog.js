@@ -17,6 +17,46 @@
   const linkDe = p => `${SITE}/blog?p=${encodeURIComponent(p.slug)}`;
   const paraInput = iso => { if (!iso) return ''; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 
+  // ---------- imagens: reduz no navegador e envia para o Storage do Supabase (bucket público 'blog') ----------
+  const BUCKET = 'blog';
+  async function enviarImagem(file, largura = 1600) {
+    if (!file || !/^image\//.test(file.type)) throw new Error('Escolha um arquivo de imagem (JPG, PNG ou WebP).');
+    if (!Store.isRemote()) throw new Error('O envio de imagens só funciona com o Supabase configurado.');
+    let bmp;
+    try { bmp = await createImageBitmap(file); }
+    catch { throw new Error('Não consegui abrir essa imagem. Se for foto do iPhone (HEIC), salve como JPG antes.'); }
+    const k = Math.min(1, largura / bmp.width);
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const png = file.type === 'image/png' && c.width <= 900;   // ícones e gráficos pequenos ficam nítidos em PNG
+    let blob = await new Promise(r => c.toBlob(r, png ? 'image/png' : 'image/webp', .85));
+    if (!blob || (!png && blob.type !== 'image/webp')) blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .85));
+    if (blob.size > 5 * 1024 * 1024) throw new Error('A imagem ficou grande demais (mais de 5 MB). Tente uma menor.');
+    const ext = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg' }[blob.type] || 'jpg';
+    await Store.rpc('meu_perfil').catch(() => {});   // renova a sessão antes do envio
+    const st = Store.settings(), sess = Store.getSession();
+    const nome = `${new Date().toISOString().slice(0, 7)}/${Store.uid()}.${ext}`;
+    const r = await fetch(`${st.supabaseUrl}/storage/v1/object/${BUCKET}/${nome}`, {
+      method: 'POST', body: blob,
+      headers: { apikey: st.supabaseAnonKey, Authorization: `Bearer ${sess?.access_token || st.supabaseAnonKey}`, 'Content-Type': blob.type, 'cache-control': '31536000' },
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      if (/bucket not found/i.test(t)) throw new Error('O espaço de imagens ainda não foi criado no Supabase (rode o supabase/blog.sql de novo).');
+      if (r.status === 400 || r.status === 401 || r.status === 403) throw new Error('Sem permissão para enviar imagens. Só quem é de MKT ou administrador pode.');
+      throw new Error(`Falha ao enviar a imagem (${r.status}).`);
+    }
+    return `${st.supabaseUrl}/storage/v1/object/public/${BUCKET}/${nome}`;
+  }
+  function escolherArquivo() {
+    return new Promise(res => {
+      const i = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*' });
+      i.addEventListener('change', () => res(i.files[0] || null));
+      i.click();
+    });
+  }
+
   async function load() {
     try { posts = await Store.list('blog'); }
     catch (e) { toast('Erro ao carregar o blog: ' + e.message, 'error'); posts = []; }
@@ -56,10 +96,16 @@
           <input class="input" name="slug" value="${esc(base.slug || '')}" ${ro} placeholder="gerado a partir do título"></div></label>
         <label class="field wide"><span>Resumo (aparece no Google e na lista do blog) <b class="muted small" id="cont-resumo"></b></span>
           <textarea class="input" name="resumo" rows="2" maxlength="200" ${ro} placeholder="Uma ou duas frases sobre o post, até 160 caracteres">${esc(base.resumo || '')}</textarea></label>
-        <label class="field"><span>Imagem de capa (link)</span><input class="input" name="capa" type="url" value="${esc(base.capa || '')}" ${ro} placeholder="https://…/imagem.jpg"></label>
+        <div class="field"><span>Imagem de capa</span>
+          <div class="blog-capa-campo">${canEdit ? '<button type="button" class="btn small" id="enviar-capa">Enviar foto</button>' : ''}
+            <input class="input" name="capa" type="url" value="${esc(base.capa || '')}" ${ro} placeholder="ou cole o link da imagem"></div>
+          <span class="muted small" id="capa-status">Ideal: foto deitada (16:9), até 5 MB.</span></div>
         <label class="field"><span>Autor</span><input class="input" name="autor" value="${esc(base.autor || '')}" ${ro}></label>
         <div class="field wide"><span>Texto *</span>
-          <div class="blog-dica muted small">Linha em branco separa parágrafos · <code>## Título</code> · <code>### Subtítulo</code> · <code>- item</code> · <code>**negrito**</code> · <code>[texto](https://link)</code> · <code>![legenda](https://imagem.jpg)</code></div>
+          ${canEdit ? `<div class="blog-ferramentas"><button type="button" class="btn small" id="ins-imagem">+ Imagem</button>
+            <button type="button" class="btn small" id="ins-grafico">+ Gráfico</button>
+            <span class="muted small" id="texto-status">Você também pode arrastar ou colar (Ctrl+V) uma imagem no texto.</span></div>` : ''}
+          <div class="blog-dica muted small">Linha em branco separa parágrafos · <code>## Título</code> · <code>### Subtítulo</code> · <code>- item</code> · <code>**negrito**</code> · <code>[texto](https://link)</code> · <code>![legenda](imagem)</code> · <code>[gráfico: Título]</code></div>
           <div class="blog-editor"><textarea class="input mono" name="texto" rows="18" ${ro}>${esc(base.texto || '')}</textarea>
           <div class="blog-previa" aria-label="Prévia do post"></div></div></div>
         <label class="field"><span>Publicação</span><input class="input" type="datetime-local" name="publicado_em" value="${esc(paraInput(base.publicado_em))}" ${ro}>
@@ -89,6 +135,44 @@
     f.elements.slug.addEventListener('change', () => { f.elements.slug.value = slugDe(f.elements.slug.value); });
     ['texto', 'capa', 'resumo'].forEach(k => f.elements[k].addEventListener('input', atualizar));
     atualizar();
+
+    // capa: envia a foto e preenche o link
+    $('#enviar-capa', dlg)?.addEventListener('click', async e => {
+      const file = await escolherArquivo(); if (!file) return;
+      const b = e.target, st = $('#capa-status', dlg);
+      b.disabled = true; st.textContent = 'Enviando foto…';
+      try { f.elements.capa.value = await enviarImagem(file, 1600); st.textContent = 'Foto enviada.'; atualizar(); }
+      catch (err) { st.textContent = err.message; toast(err.message, 'error'); }
+      finally { b.disabled = false; }
+    });
+    // imagens e gráficos no texto
+    const ta = f.elements.texto;
+    function inserir(trecho) {
+      const i = ta.selectionStart ?? ta.value.length, antes = ta.value.slice(0, i), depois = ta.value.slice(ta.selectionEnd ?? i);
+      const pre = antes && !/\n\n$/.test(antes) ? (antes.endsWith('\n') ? '\n' : '\n\n') : '';
+      const pos = depois && !/^\n\n/.test(depois) ? (depois.startsWith('\n') ? '\n' : '\n\n') : '';
+      ta.value = antes + pre + trecho + pos + depois;
+      const fim = (antes + pre + trecho).length;
+      ta.focus(); ta.setSelectionRange(fim, fim);
+      atualizar();
+    }
+    async function imagensNoTexto(files) {
+      const st = $('#texto-status', dlg);
+      for (const file of files) {
+        if (!/^image\//.test(file.type)) continue;
+        st.textContent = 'Enviando imagem…';
+        try { const url = await enviarImagem(file, 1400); inserir(`![${(file.name || 'Imagem').replace(/\.[a-z0-9]+$/i, '').replace(/[\[\]]/g, '')}](${url})`); st.textContent = 'Imagem inserida. Troque o texto entre [ ] pela legenda.'; }
+        catch (err) { st.textContent = err.message; toast(err.message, 'error'); }
+      }
+    }
+    $('#ins-imagem', dlg)?.addEventListener('click', async () => { const file = await escolherArquivo(); if (file) imagensNoTexto([file]); });
+    $('#ins-grafico', dlg)?.addEventListener('click', () => inserir('[gráfico: Título do gráfico]\nJaneiro: 120\nFevereiro: 180\nMarço: 240'));
+    if (canEdit) {
+      ta.addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])]; if (fs.some(x => /^image\//.test(x.type))) { e.preventDefault(); imagensNoTexto(fs); } });
+      ta.addEventListener('dragover', e => { if ([...(e.dataTransfer?.items || [])].some(x => x.kind === 'file')) { e.preventDefault(); ta.classList.add('soltar'); } });
+      ta.addEventListener('dragleave', () => ta.classList.remove('soltar'));
+      ta.addEventListener('drop', e => { const fs = [...(e.dataTransfer?.files || [])]; ta.classList.remove('soltar'); if (fs.length) { e.preventDefault(); imagensNoTexto(fs); } });
+    }
 
     async function salvar(dl, status) {
       const v = k => f.elements[k].value.trim();

@@ -1017,3 +1017,14 @@ button.link:hover { text-decoration: underline; }
 .blog-capa { margin-bottom: 14px; aspect-ratio: 16/9; object-fit: cover; width: 100%; }
 .blog-previa blockquote { margin: 10px 0; padding-left: 12px; border-left: 3px solid var(--accent); color: #444; }
 @media (max-width: 900px) { .blog-editor { grid-template-columns: 1fr; } }
+.blog-capa-campo { display: flex; gap: 8px; align-items: center; }
+.blog-capa-campo .input { flex: 1; min-width: 0; }
+.blog-ferramentas { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+.blog-editor textarea.soltar { outline: 2px dashed var(--accent); outline-offset: -4px; background: var(--accent-50); }
+.blog-grafico { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; }
+.blog-grafico figcaption { font-weight: 700; margin-bottom: 10px; }
+.bg-barras { display: grid; gap: 8px; }
+.bg-linha { display: grid; grid-template-columns: minmax(70px, 28%) 1fr auto; align-items: center; gap: 10px; font-size: 14px; }
+.bg-trilho { height: 14px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.bg-trilho i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.bg-linha b { font-variant-numeric: tabular-nums; }

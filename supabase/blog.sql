@@ -45,3 +45,19 @@ revoke all on function public.blog_post(text) from public;
 grant execute on function public.blog_publico() to anon, authenticated;
 grant execute on function public.blog_post(text) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- 4) Imagens do blog (capa e fotos/gráficos no texto): espaço público 'blog' no Storage.
+-- Qualquer pessoa vê as imagens (o site precisa); só quem pode editar o blog (MKT e administradores) envia, troca ou apaga.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('blog', 'blog', true, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "blog: enviar imagens" on storage.objects;
+drop policy if exists "blog: trocar imagens" on storage.objects;
+drop policy if exists "blog: apagar imagens" on storage.objects;
+create policy "blog: enviar imagens" on storage.objects for insert to authenticated
+  with check (bucket_id = 'blog' and public.pode_escrever('blog'));
+create policy "blog: trocar imagens" on storage.objects for update to authenticated
+  using (bucket_id = 'blog' and public.pode_escrever('blog')) with check (bucket_id = 'blog' and public.pode_escrever('blog'));
+create policy "blog: apagar imagens" on storage.objects for delete to authenticated
+  using (bucket_id = 'blog' and public.pode_escrever('blog'));
